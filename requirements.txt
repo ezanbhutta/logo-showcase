@@ -1,0 +1,3 @@
+# Logo Showcase engine dependencies
+WeasyPrint>=60        # HTML/CSS -> PDF rendering
+Pillow>=10            # image resize, optimize, hash-cache
