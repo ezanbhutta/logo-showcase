@@ -1,6 +1,6 @@
 {
   "id": "storm",
-  "name": "Storm Designs",
+  "name": "Storm Design",
   "sort_primary": "industry",
   "palette": {
     "ink": "#15181E",
@@ -11,7 +11,19 @@
     "cover_bg": "#15181E",
     "cover_fg": "#FFFFFF"
   },
-  "fonts": { "display": "Archivo", "body": "Archivo", "serif": "Spectral" },
-  "layout": { "cover_style": "dark", "tile_cols": 3, "tile_radius_mm": 3, "density": "comfortable" },
-  "labels": { "slice_kicker": "Selected work", "range_title": "Full range" }
+  "fonts": {
+    "display": "Archivo",
+    "body": "Archivo",
+    "serif": "Spectral"
+  },
+  "layout": {
+    "cover_style": "editorial",
+    "tile_cols": 3,
+    "tile_radius_mm": 3,
+    "density": "comfortable"
+  },
+  "labels": {
+    "slice_kicker": "Selected work",
+    "range_title": "Full range"
+  }
 }

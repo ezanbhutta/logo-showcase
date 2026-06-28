@@ -1,16 +1,11 @@
 file,name,industries,types,tier,year,active,notes
-apex-builders.png,Apex Builders,construction|real-estate,combination,1,2024,true,flagship construction mark
-greenleaf.png,GreenLeaf,health-medical|fitness-wellness,pictorial,2,2023,true,
-veritas.png,Veritas,finance-banking,wordmark,1,2025,true,
-ironclad.png,Ironclad,construction|industrial-manufacturing,emblem,2,2024,true,
-northstar-realty.png,Northstar Realty,real-estate,combination,1,2025,true,
-solidframe.png,SolidFrame,construction|real-estate,abstract,2,2022,true,
-brightway.png,Brightway,real-estate|hospitality-travel,pictorial,3,2023,true,
-keystone-co.png,Keystone Co,construction|professional-services,monogram,2,2024,true,uses monogram alias -> lettermark
-urbanest.png,Urbanest,real-estate|architecture-interior,combination,1,2025,true,
-meridian-homes.png,Meridian Homes,real-estate,abstract,3,2021,true,
-cobalt-clinic.png,Cobalt Clinic,health-medical,pictorial,2,2024,true,
-vitality.png,Vitality,fitness-wellness|health-medical,combination,1,2025,true,
-ledgerline.png,Ledgerline,finance-banking,wordmark,3,2022,true,
-trustbank.png,Trustbank,finance-banking|insurance,lettermark,2,2023,true,
-foundry-co.png,Foundry Co,industrial-manufacturing|construction,abstract,4,2020,false,retired — hidden from outputs
+apex-builders.png,Apex Builders,construction|real-estate,combination,1,2021,true,
+greenleaf.png,GreenLeaf,health-medical|fitness-wellness,pictorial,2,2022,true,
+veritas.png,Veritas,finance-banking,wordmark,3,2023,true,
+ironclad.png,Ironclad,construction|industrial-manufacturing,emblem,1,2024,true,
+northstar.png,Northstar,real-estate,combination,2,2025,true,
+solidframe.png,SolidFrame,construction,abstract,3,2021,true,
+brightway.png,Brightway,real-estate|hospitality-travel,pictorial,1,2022,true,
+keystone.png,Keystone,construction|professional-services,monogram,2,2023,true,
+meridian.png,Meridian,real-estate,abstract,3,2024,true,
+cobalt-clinic.png,Cobalt Clinic,health-medical,pictorial,1,2025,true,

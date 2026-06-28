@@ -1,0 +1,10 @@
+file,name,industries,types,tier,year,active,notes
+royale.png,Royale,hospitality-travel|finance-banking,emblem,1,2021,true,
+crest.png,Crest,finance-banking|legal,emblem,2,2022,true,
+aurum.png,Aurum,finance-banking,lettermark,3,2023,true,
+noble.png,Noble,legal|professional-services,wordmark,1,2024,true,
+imperial.png,Imperial,real-estate|hospitality-travel,combination,2,2025,true,
+sterling.png,Sterling,finance-banking|insurance,wordmark,3,2021,true,
+regalia.png,Regalia,fashion-apparel|beauty-cosmetics,emblem,1,2022,true,
+monarch.png,Monarch,professional-services,combination,2,2023,true,
+vault.png,Vault,finance-banking|insurance,abstract,3,2024,true,

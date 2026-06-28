@@ -1,0 +1,29 @@
+{
+  "id": "bic",
+  "name": "BIC",
+  "sort_primary": "type",
+  "palette": {
+    "ink": "#111111",
+    "paper": "#FFFFFF",
+    "accent": "#111111",
+    "accent_soft": "#ECECEC",
+    "muted": "#9A9A9A",
+    "cover_bg": "#FFFFFF",
+    "cover_fg": "#111111"
+  },
+  "fonts": {
+    "display": "Archivo",
+    "body": "Archivo",
+    "serif": "Spectral"
+  },
+  "layout": {
+    "cover_style": "minimal",
+    "tile_cols": 4,
+    "tile_radius_mm": 1,
+    "density": "compact"
+  },
+  "labels": {
+    "slice_kicker": "Index",
+    "range_title": "Index"
+  }
+}

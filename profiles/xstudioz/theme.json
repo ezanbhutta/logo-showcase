@@ -1,0 +1,29 @@
+{
+  "id": "xstudioz",
+  "name": "XStudioz",
+  "sort_primary": "type",
+  "palette": {
+    "ink": "#0B0B0F",
+    "paper": "#FFFFFF",
+    "accent": "#6E56F8",
+    "accent_soft": "#ECE9FE",
+    "muted": "#71717A",
+    "cover_bg": "#0B0B0F",
+    "cover_fg": "#F6F5FF"
+  },
+  "fonts": {
+    "display": "Syne",
+    "body": "Sora",
+    "serif": "Fraunces"
+  },
+  "layout": {
+    "cover_style": "bold",
+    "tile_cols": 3,
+    "tile_radius_mm": 4,
+    "density": "comfortable"
+  },
+  "labels": {
+    "slice_kicker": "Selected work",
+    "range_title": "Full range"
+  }
+}

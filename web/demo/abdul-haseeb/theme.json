@@ -1,0 +1,29 @@
+{
+  "id": "abdul-haseeb",
+  "name": "Abdul Haseeb",
+  "sort_primary": "industry",
+  "palette": {
+    "ink": "#14181F",
+    "paper": "#FFFFFF",
+    "accent": "#C9A24B",
+    "accent_soft": "#F4ECDB",
+    "muted": "#7B8290",
+    "cover_bg": "#0E1320",
+    "cover_fg": "#F4EFE3"
+  },
+  "fonts": {
+    "display": "Fraunces",
+    "body": "DMSans",
+    "serif": "Fraunces"
+  },
+  "layout": {
+    "cover_style": "serif",
+    "tile_cols": 3,
+    "tile_radius_mm": 2,
+    "density": "comfortable"
+  },
+  "labels": {
+    "slice_kicker": "Signature work",
+    "range_title": "Portfolio"
+  }
+}
