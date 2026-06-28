@@ -3,6 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
   <title>Logo Showcase · HaseebMadeIt</title>
   <link rel="icon" type="image/svg+xml" href="favicon.svg">
   <link rel="stylesheet" href="styles.css">
@@ -18,12 +19,16 @@
       </svg>
       <span class="brand-text">Logo Showcase<small>HaseebMadeIt</small></span>
     </div>
-    <nav class="tabs">
-      <button class="tab active" data-view="make"><span>Create</span></button>
-      <button class="tab" data-view="gallery"><span>Gallery</span></button>
-      <button class="tab" data-view="settings"><span>Settings</span></button>
+    <nav class="tabs" role="tablist">
+      <button class="tab active" data-view="make" role="tab" aria-selected="true"><span>Create</span></button>
+      <button class="tab" data-view="gallery" role="tab" aria-selected="false"><span>Gallery</span></button>
+      <button class="tab" data-view="settings" role="tab" aria-selected="false"><span>Settings</span></button>
     </nav>
-    <div class="source" id="source-badge"><span class="src-dot"></span><span id="source-text">Demo logos</span></div>
+    <div class="appbar-right">
+      <button class="kbd-hint" id="open-palette" title="Command palette"><kbd>⌘</kbd><kbd>K</kbd></button>
+      <button class="iconbtn ghost-icon" id="theme-toggle" aria-label="Toggle dark mode" title="Toggle theme">◐</button>
+      <div class="source" id="source-badge"><span class="src-dot"></span><span id="source-text">Demo logos</span></div>
+    </div>
   </header>
 
   <div id="connect-banner" class="banner" hidden>
@@ -33,68 +38,109 @@
 
   <main>
     <!-- CREATE -->
-    <section id="view-make" class="view container">
-      <div class="page-head">
-        <h1>Create a presentation</h1>
-        <p class="lede">Pick a studio, narrow it down, and preview a polished PDF in seconds.</p>
-      </div>
+    <section id="view-make" class="view" hidden>
+      <div class="make-layout">
+        <div class="make-controls">
+          <div class="page-head">
+            <h1>Create a presentation</h1>
+            <p class="lede">Pick a studio, tune the deck, and watch it build live.</p>
+          </div>
 
-      <div id="no-studios" class="callout" hidden></div>
+          <div id="no-studios" class="callout" hidden></div>
 
-      <div class="panel">
-        <div class="panel-row">
-          <label class="field grow"><span class="lbl">Studio</span>
-            <div class="select-wrap"><select id="make-profile"></select></div>
-          </label>
-          <div class="swatches" id="make-swatches" aria-hidden="true"></div>
-        </div>
-      </div>
+          <div class="panel">
+            <div class="panel-row">
+              <label class="field grow"><span class="lbl">Studio</span>
+                <div class="select-wrap"><select id="make-profile"></select></div>
+              </label>
+              <div class="swatches" id="make-swatches" aria-hidden="true"></div>
+            </div>
+          </div>
 
-      <div class="panel">
-        <div class="filter-block">
-          <div class="filter-head"><span class="lbl">Industries</span><button class="mini" data-clear="industry">clear</button></div>
-          <div id="make-industries" class="pills"></div>
-        </div>
-        <div class="filter-block">
-          <div class="filter-head"><span class="lbl">Types</span><button class="mini" data-clear="type">clear</button></div>
-          <div id="make-types" class="pills"></div>
-        </div>
-        <div class="filter-block">
-          <div class="filter-head"><span class="lbl">Match</span></div>
-          <div class="segmented" id="make-match">
-            <button class="seg active" data-val="any">Any</button>
-            <button class="seg" data-val="all">All</button>
+          <div class="panel">
+            <div class="filter-block">
+              <div class="filter-head"><span class="lbl">Industries</span><button class="mini" data-clear="industry">clear</button></div>
+              <div id="make-industries" class="pills"></div>
+            </div>
+            <div class="filter-block">
+              <div class="filter-head"><span class="lbl">Types</span><button class="mini" data-clear="type">clear</button></div>
+              <div id="make-types" class="pills"></div>
+            </div>
+            <div class="filter-block">
+              <div class="filter-head"><span class="lbl">Match</span></div>
+              <div class="segmented" id="make-match" role="radiogroup">
+                <button class="seg active" data-val="any" role="radio" aria-checked="true">Any</button>
+                <button class="seg" data-val="all" role="radio" aria-checked="false">All</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="panel">
+            <div class="filter-block">
+              <div class="filter-head"><span class="lbl">Output</span></div>
+              <div class="segmented wide" id="make-mode" role="radiogroup">
+                <button class="seg active" data-val="slice" role="radio" aria-checked="true">Slice <em>· client deliverable</em></button>
+                <button class="seg" data-val="range" role="radio" aria-checked="false">Range <em>· show breadth</em></button>
+              </div>
+            </div>
+            <div class="filter-block" id="make-count-block">
+              <div class="filter-head"><span class="lbl">Max logos <b id="count-val">12</b></span></div>
+              <input type="range" id="make-count" min="4" max="40" value="12" aria-label="Maximum logos" aria-valuetext="12 logos">
+            </div>
+          </div>
+
+          <details class="panel options" id="options-panel">
+            <summary><span class="lbl" style="margin:0">Presentation options</span><span class="chev">▾</span></summary>
+            <div class="opt-grid">
+              <div class="field"><span class="lbl">Layout</span>
+                <div class="segmented wide" id="opt-layout" role="radiogroup">
+                  <button class="seg active" data-val="grid" role="radio" aria-checked="true">Grid</button>
+                  <button class="seg" data-val="lookbook" role="radio" aria-checked="false">Lookbook</button>
+                </div>
+              </div>
+              <div class="field" id="opt-cols-field"><span class="lbl">Columns</span>
+                <div class="select-wrap"><select id="opt-cols">
+                  <option value="">Auto (theme)</option><option value="2">2</option><option value="3">3</option><option value="4">4</option>
+                </select></div>
+              </div>
+              <div class="field"><span class="lbl">Density</span>
+                <div class="segmented wide" id="opt-density" role="radiogroup">
+                  <button class="seg active" data-val="" role="radio" aria-checked="true">Auto</button>
+                  <button class="seg" data-val="comfortable" role="radio" aria-checked="false">Roomy</button>
+                  <button class="seg" data-val="compact" role="radio" aria-checked="false">Compact</button>
+                </div>
+              </div>
+            </div>
+            <div class="opt-toggles">
+              <label class="toggle"><input type="checkbox" id="opt-cover" checked><span>Cover page</span></label>
+              <label class="toggle"><input type="checkbox" id="opt-closing" checked><span>Closing page</span></label>
+            </div>
+          </details>
+
+          <div id="recent-wrap" class="recent" hidden>
+            <div class="lbl">Recent</div>
+            <div id="recent-list" class="recent-list"></div>
           </div>
         </div>
-      </div>
 
-      <div class="panel">
-        <div class="panel-row">
-          <div class="field grow"><span class="lbl">Output</span>
-            <div class="segmented wide" id="make-mode">
-              <button class="seg active" data-val="slice">Slice <em>· client deliverable</em></button>
-              <button class="seg" data-val="range">Range sheet <em>· show breadth</em></button>
+        <!-- LIVE PREVIEW -->
+        <div class="make-preview">
+          <div class="preview-shell" id="preview-shell">
+            <div class="preview-bar">
+              <span class="preview-status" id="preview-status" aria-live="polite"><span class="ps-dot"></span><span id="preview-status-text">Up to date</span></span>
+              <div class="preview-bar-actions">
+                <button class="iconbtn" id="preview-expand" title="Fullscreen" aria-label="Fullscreen">⤢</button>
+                <button class="iconbtn" id="preview-open2" title="Open in new tab" aria-label="Open in new tab">↗</button>
+                <button class="cta sm" id="preview-download2"><span class="cta-label">Download PDF</span><span class="cta-spin" hidden></span></button>
+              </div>
+            </div>
+            <div class="preview-stage">
+              <div class="skeleton" id="preview-skeleton"><div class="sk-page"><div class="sk-tile"></div><div class="sk-tile"></div><div class="sk-tile"></div><div class="sk-tile"></div></div></div>
+              <iframe id="live-frame" title="PDF preview" hidden></iframe>
+              <div class="shimmer" aria-hidden="true"></div>
             </div>
           </div>
         </div>
-        <div class="panel-row" id="make-count-row">
-          <label class="field grow"><span class="lbl">Max logos <b id="count-val">12</b></span>
-            <input type="range" id="make-count" min="4" max="40" value="12">
-          </label>
-        </div>
-      </div>
-
-      <div class="actions">
-        <button class="cta" id="make-generate">
-          <span class="cta-label">Generate preview</span>
-          <span class="cta-spin" hidden></span>
-        </button>
-        <span id="make-status" class="status"></span>
-      </div>
-
-      <div id="recent-wrap" class="recent" hidden>
-        <div class="lbl">Recent</div>
-        <div id="recent-list" class="recent-list"></div>
       </div>
     </section>
 
@@ -103,11 +149,14 @@
       <div class="gallery-head container">
         <div>
           <h1>Browse gallery</h1>
-          <p class="lede">Hand-pick marks, then preview them as a slice.</p>
+          <p class="lede">Hand-pick marks, reorder them, then preview a slice.</p>
         </div>
         <div class="gallery-head-right">
           <div class="select-wrap small"><select id="gal-profile"></select></div>
-          <input id="gal-search" type="search" placeholder="Search by name…">
+          <div class="select-wrap small"><select id="gal-sort">
+            <option value="tier">Sort: Tier</option><option value="year">Sort: Newest</option><option value="name">Sort: Name</option>
+          </select></div>
+          <input id="gal-search" type="search" placeholder="Search…  ( / )">
         </div>
       </div>
       <div class="gallery-layout container">
@@ -115,19 +164,24 @@
           <div class="filter-block"><span class="lbl">Industry</span><div id="gal-industries" class="pills"></div></div>
           <div class="filter-block"><span class="lbl">Type</span><div id="gal-types" class="pills"></div></div>
           <div class="filter-block"><span class="lbl">Match</span>
-            <div class="segmented" id="gal-match"><button class="seg active" data-val="any">Any</button><button class="seg" data-val="all">All</button></div>
+            <div class="segmented" id="gal-match" role="radiogroup"><button class="seg active" data-val="any" role="radio" aria-checked="true">Any</button><button class="seg" data-val="all" role="radio" aria-checked="false">All</button></div>
           </div>
-          <button id="gal-clear" class="mini">Clear filters</button>
+          <div class="filter-actions"><button id="gal-clear" class="mini">Clear filters</button><button id="gal-selectall" class="mini">Select all</button></div>
+          <div class="gal-count" id="gal-count"></div>
         </aside>
         <div>
           <div id="gal-grid" class="cardgrid"></div>
-          <p id="gal-empty" class="empty" hidden>No logos match these filters.</p>
+          <div id="gal-empty" class="empty-state" hidden>
+            <div class="empty-ico">▦</div><div class="empty-t">No logos match these filters</div>
+            <button class="ghost" id="gal-empty-clear">Clear filters</button>
+          </div>
         </div>
       </div>
       <div id="gal-selbar" class="selbar" hidden>
-        <span id="gal-selcount">0 selected</span>
+        <div class="tray" id="gal-tray" aria-label="Selected logos (drag to reorder)"></div>
+        <span id="gal-selcount" class="selcount">0</span>
         <div class="selbar-actions">
-          <button id="gal-clearsel" class="ghost">Clear</button>
+          <button id="gal-clearsel" class="ghost dark">Clear</button>
           <button id="gal-preview" class="cta sm"><span class="cta-label">Preview selection</span><span class="cta-spin" hidden></span></button>
         </div>
       </div>
@@ -144,7 +198,7 @@
           <strong>Google Drive for Desktop</strong> folder. It's read on your computer; nothing is uploaded. You only do this once.</p>
           <div class="actions left">
             <button class="cta sm" id="connect-folder"><span class="cta-label">Connect library folder</span></button>
-            <button class="ghost dark" id="disconnect-folder" hidden>Disconnect</button>
+            <button class="ghost" id="disconnect-folder" hidden>Disconnect</button>
           </div>
         </div>
         <div id="fs-unsupported" class="callout" hidden>
@@ -155,32 +209,29 @@
         <h2>How to organise your library folder</h2>
         <p class="muted">Point the app at <strong>one library folder</strong>. Inside it, create
         <strong>one sub-folder per studio</strong>. Each studio folder holds a <code>logos/</code>
-        folder plus two small text files. That's the whole structure:</p>
+        folder plus a <code>tags.csv</code> (and an optional <code>theme.json</code>):</p>
         <pre class="tree">Logo Library/            <span class="c">← the folder you attach</span>
 ├── storm/               <span class="c">← one folder per studio (kebab-case)</span>
 │   ├── logos/           <span class="c">← master images live here</span>
 │   │   ├── apex-builders.png
 │   │   └── greenleaf.png
-│   ├── tags.csv         <span class="c">← the label sheet</span>
-│   └── theme.json       <span class="c">← this studio's colours & fonts</span>
+│   ├── tags.csv         <span class="c">← the label sheet (required)</span>
+│   └── theme.json       <span class="c">← colours &amp; fonts (optional)</span>
 ├── eikon/
 │   └── …
 └── grid/ …</pre>
-
         <h3>File formats <span class="req">required</span></h3>
         <table class="fmt">
           <tr><td><code>logos/*.png</code></td><td><b>PNG</b> · transparent background preferred · ≥ 1200&nbsp;px on the long edge</td></tr>
           <tr><td><code>tags.csv</code></td><td><b>CSV</b> · UTF-8, comma-separated, with a header row</td></tr>
-          <tr><td><code>theme.json</code></td><td><b>JSON</b> · the studio's palette, fonts, layout</td></tr>
+          <tr><td><code>theme.json</code></td><td><b>JSON</b> · optional · the studio's palette, fonts, layout</td></tr>
         </table>
-
         <h3>Naming rules</h3>
         <ul class="muted">
           <li><b>Studio folder</b> — short, lowercase, hyphens not spaces: <code>abdul-haseeb</code>, <code>grid</code>.</li>
-          <li><b>Logo file</b> — lowercase, hyphens, unique within the studio, and it <b>must match</b> the <code>file</code> column in <code>tags.csv</code>: <code>apex-builders.png</code>.</li>
+          <li><b>Logo file</b> — lowercase, hyphens, unique, and it <b>must match</b> the <code>file</code> column in <code>tags.csv</code>.</li>
           <li>No spaces, capitals or symbols in any file or folder name.</li>
         </ul>
-
         <h3>What goes in <code>tags.csv</code></h3>
         <p class="muted">One row per logo. Columns: <code>file, name, industries, types, tier, year, active, notes</code>.</p>
         <table class="fmt">
@@ -191,38 +242,24 @@
           <tr><td><code>tier</code></td><td>1–5. <b>1 = flagship</b> (shown first), 5 = filler.</td></tr>
           <tr><td><code>year</code> · <code>active</code> · <code>notes</code></td><td>Optional. <code>active=false</code> hides a logo.</td></tr>
         </table>
-
         <h3>How to categorise</h3>
-        <p class="muted">Values <b>must</b> come from these lists (the app rejects anything else, so labels never drift). A logo can carry several of each — tag once, surface everywhere.</p>
+        <p class="muted">Values <b>must</b> come from these lists (the app rejects anything else, so labels never drift).</p>
         <div class="vocab"><span class="vk">Industries</span><span id="vocab-industries"></span></div>
         <div class="vocab"><span class="vk">Types</span><span id="vocab-types"></span></div>
-
         <div class="actions left" style="margin-top:1rem">
           <button class="ghost" id="dl-template">Download tags.csv template</button>
           <button class="ghost" id="dl-theme">Download theme.json template</button>
         </div>
       </div>
-
-      <details class="panel">
-        <summary>How it works</summary>
-        <ul class="muted">
-          <li>The app is hosted online but reads your library folder <strong>locally, in your browser</strong>.</li>
-          <li>Your logos never leave your computer — PDFs are built on-device.</li>
-          <li>Admin keeps the shared library in Google Drive; everyone points the app at their synced copy.</li>
-        </ul>
-      </details>
     </section>
   </main>
 
-  <!-- PREVIEW MODAL -->
-  <div id="preview" class="modal" hidden>
+  <!-- FULLSCREEN PREVIEW MODAL (gallery + expand) -->
+  <div id="preview" class="modal" hidden role="dialog" aria-modal="true" aria-labelledby="preview-title">
     <div class="modal-bg" data-close></div>
     <div class="modal-card">
       <header class="modal-head">
-        <div>
-          <div class="modal-title" id="preview-title">Preview</div>
-          <div class="modal-sub" id="preview-sub"></div>
-        </div>
+        <div><div class="modal-title" id="preview-title">Preview</div><div class="modal-sub" id="preview-sub"></div></div>
         <div class="modal-actions">
           <button class="ghost dark" id="preview-open">Open in tab</button>
           <button class="cta sm" id="preview-download"><span class="cta-label">Download PDF</span></button>
@@ -236,7 +273,32 @@
     </div>
   </div>
 
-  <footer class="foot">Runs in your browser · your logos stay on your computer</footer>
+  <!-- LOGO DETAIL MODAL -->
+  <div id="detail" class="modal" hidden role="dialog" aria-modal="true">
+    <div class="modal-bg" data-detail-close></div>
+    <div class="modal-card detail-card">
+      <header class="modal-head">
+        <div class="modal-title" id="detail-name">Logo</div>
+        <button class="iconbtn" data-detail-close aria-label="Close">✕</button>
+      </header>
+      <div class="detail-body">
+        <div class="detail-img"><img id="detail-img" alt=""></div>
+        <div class="detail-meta" id="detail-meta"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- COMMAND PALETTE -->
+  <div id="palette" class="modal palette" hidden role="dialog" aria-modal="true">
+    <div class="modal-bg" data-palette-close></div>
+    <div class="palette-card">
+      <input id="palette-input" type="text" placeholder="Type a command or studio…" autocomplete="off">
+      <div id="palette-list" class="palette-list"></div>
+    </div>
+  </div>
+
+  <div class="toasts" id="toasts" aria-live="polite"></div>
+  <footer class="foot">Runs in your browser · your logos stay on your computer · <span class="mono">⌘K</span> for commands</footer>
   <script type="module" src="app.js"></script>
 </body>
 </html>

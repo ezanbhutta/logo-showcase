@@ -226,36 +226,23 @@ function drawClosing(page, theme, F, ctx) {
 
 // ---- slice -----------------------------------------------------------------
 
-export async function renderSlice(src, profile, theme, entries, query, opts = {}) {
-  const pdf = await PDFDocument.create();
-  pdf.setTitle(`${theme.name} — ${opts.clientName || "Logo slice"}`);
-  pdf.setCreator("Logo Showcase");
-  const F = await makeFonts(pdf, theme);
+function drawGrid(pdf, theme, F, tiles, subtitle, ctx) {
   const pal = theme.palette;
-  const tiles = await embedPreviews(pdf, src, profile, entries, pal.paper);
-  const subtitle = titleCase(describeQuery(query.industries, query.types, query.matchAll));
-  const ctx = { subtitle, n: entries.length, clientName: opts.clientName || "", dateStr: opts.dateStr || "" };
-
-  drawCover(pdf.addPage([PAGE_W, PAGE_H]), theme, F, ctx);
-
   const cols = theme.layout.tile_cols;
   const gm = 16, top = 34;
   const gap = theme.layout.density === "comfortable" ? 9 : 6;
   const contentW = 210 - 2 * gm;
   const tileW = (contentW - gap * (cols - 1)) / cols;
   const imgH = tileW * 0.74, capH = 13, tileH = imgH + capH, rowGap = gap + 4;
-
-  // Kerning-safe font for the many small tile names (Fraunces looks loose small).
   const nameFont = theme.fonts.display === "Fraunces" ? F("body", "semibold") : F("display", "semibold");
-  const pages = [];
-  let page = pdf.addPage([PAGE_W, PAGE_H]); page._F = F; pages.push(page);
   const headerFont = theme.fonts.display === "Fraunces" ? F("body", "bold") : F("display", "bold");
   const header = (pg) => {
     text(pg, gm, top - 12, theme.name, headerFont, 14, hex(pal.ink));
     text(pg, 210 - gm, top - 12, `${subtitle} · ${ctx.n} marks`, F("body", "regular"), 9, hex(pal.muted), { align: "right" });
     hline(pg, gm, 210 - gm, top - 7, hex(pal.accent), 0.8);
   };
-  header(page);
+  const pages = [];
+  let page = pdf.addPage([PAGE_W, PAGE_H]); page._F = F; pages.push(page); header(page);
   let col = 0, rowY = top, idx = 0;
   for (const { entry, img } of tiles) {
     if (rowY + tileH > 278) { page = pdf.addPage([PAGE_W, PAGE_H]); page._F = F; pages.push(page); header(page); rowY = top; col = 0; }
@@ -263,17 +250,68 @@ export async function renderSlice(src, profile, theme, entries, query, opts = {}
     rect(page, x, rowY, tileW, imgH, { fill: hex(pal.paper), stroke: hex(pal.accent_soft), line: 0.6 });
     const f = fit(img, tileW, imgH, tileW * 0.13);
     page.drawImage(img, { x: (x + tileW / 2) * MM - (f.w * MM) / 2, y: yT(rowY + imgH / 2) - (f.h * MM) / 2, width: f.w * MM, height: f.h * MM });
-    const numStr = String(++idx).padStart(2, "0");
-    text(page, x, rowY + imgH + 5.5, numStr, F("body", "semibold"), 7, hex(pal.accent), { tracking: 0.5 });
+    text(page, x, rowY + imgH + 5.5, String(++idx).padStart(2, "0"), F("body", "semibold"), 7, hex(pal.accent), { tracking: 0.5 });
     text(page, x + 8, rowY + imgH + 5.5, clip(entry.name, nameFont, 10.5, tileW - 8), nameFont, 10.5, hex(pal.ink));
     text(page, x + 8, rowY + imgH + 9.6, typeLabel(entry.types).toUpperCase(), F("body", "regular"), 6.6, hex(pal.muted), { tracking: 0.8 });
     if (++col >= cols) { col = 0; rowY += tileH + rowGap; }
   }
-  drawClosing(pdf.addPage([PAGE_W, PAGE_H]), theme, F, ctx);
+  return pages;
+}
 
-  // footers on the grid pages only
+function drawLookbook(pdf, theme, F, tiles, subtitle, ctx) {
+  const pal = theme.palette;
+  const mx = 20, top = 28, bottom = 18, perPage = 2, slotGap = 12;
+  const usable = 297 - top - bottom;
+  const slotH = (usable - slotGap * (perPage - 1)) / perPage;
+  const frameW = 210 - 2 * mx, frameH = slotH - 20;
+  const nameFont = theme.fonts.display === "Fraunces" ? F("body", "semibold") : F("display", "semibold");
+  const headerFont = theme.fonts.display === "Fraunces" ? F("body", "bold") : F("display", "bold");
+  const header = (pg) => {
+    text(pg, mx, 16, theme.name, headerFont, 12, hex(pal.ink));
+    text(pg, 210 - mx, 16, `${subtitle} · ${ctx.n} marks`, F("body", "regular"), 8.5, hex(pal.muted), { align: "right" });
+    hline(pg, mx, 210 - mx, 19, hex(pal.accent_soft), 0.4);
+  };
+  const pages = []; let page = null, slot = 0, idx = 0;
+  for (const { entry, img } of tiles) {
+    if (slot === 0) { page = pdf.addPage([PAGE_W, PAGE_H]); page._F = F; pages.push(page); header(page); }
+    const sy = top + slot * (slotH + slotGap);
+    rect(page, mx, sy, frameW, frameH, { fill: hex(pal.paper), stroke: hex(pal.accent_soft), line: 0.6 });
+    const f = fit(img, frameW, frameH, 18);
+    page.drawImage(img, { x: (mx + frameW / 2) * MM - (f.w * MM) / 2, y: yT(sy + frameH / 2) - (f.h * MM) / 2, width: f.w * MM, height: f.h * MM });
+    const cy = sy + frameH + 8;
+    text(page, mx, cy, String(++idx).padStart(2, "0"), F("body", "semibold"), 8, hex(pal.accent), { tracking: 0.5 });
+    text(page, mx + 9, cy, clip(entry.name, nameFont, 16, frameW - 45), nameFont, 16, hex(pal.ink));
+    text(page, 210 - mx, cy, typeLabel(entry.types).toUpperCase(), F("body", "regular"), 8, hex(pal.muted), { align: "right", tracking: 1 });
+    text(page, mx + 9, cy + 5.5, entry.industries.slice(0, 3).map((i) => i.replace(/-/g, " ")).join("  ·  "), F("body", "regular"), 7.5, mix(pal.muted, 0.85));
+    slot = (slot + 1) % perPage;
+  }
+  return pages;
+}
+
+export async function renderSlice(src, profile, theme, entries, query, opts = {}) {
+  const pdf = await PDFDocument.create();
+  pdf.setTitle(`${theme.name} — Logo slice`);
+  pdf.setCreator("Logo Showcase · HaseebMadeIt");
+  // Apply presentation overrides onto an effective theme.
+  const T = { ...theme, layout: { ...theme.layout,
+    tile_cols: opts.columns || theme.layout.tile_cols,
+    density: opts.density || theme.layout.density,
+    cover_style: opts.coverStyle || theme.layout.cover_style } };
+  const F = await makeFonts(pdf, T);
+  const pal = T.palette;
+  const tiles = await embedPreviews(pdf, src, profile, entries, pal.paper);
+  const subtitle = titleCase(describeQuery(query.industries, query.types, query.matchAll));
+  const ctx = { subtitle, n: entries.length, clientName: opts.clientName || "", dateStr: opts.dateStr || "" };
+  const includeCover = opts.includeCover !== false;
+  const includeClosing = opts.includeClosing !== false;
+
+  if (includeCover) drawCover(pdf.addPage([PAGE_W, PAGE_H]), T, F, ctx);
+  const contentPages = (opts.layout === "lookbook" ? drawLookbook : drawGrid)(pdf, T, F, tiles, subtitle, ctx);
+  if (includeClosing) drawClosing(pdf.addPage([PAGE_W, PAGE_H]), T, F, ctx);
+
   const total = pdf.getPageCount();
-  pages.forEach((pg, i) => footer(pg, theme, i + 2, total));
+  const startNo = includeCover ? 2 : 1;
+  contentPages.forEach((pg, i) => footer(pg, T, startNo + i, total));
   return pdf.save();
 }
 
