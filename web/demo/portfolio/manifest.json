@@ -1,0 +1,63 @@
+{
+  "profile": "eikon",
+  "name": "Eikon Design",
+  "dirs": {
+    "logos": "Logos",
+    "guidelines": "Brand Guidelines",
+    "social": "Social Media Kit",
+    "stationery": "Stationery",
+    "animation": "Logo Animation"
+  },
+  "types": {
+    "logos": [
+      "Nimbus AI-Logotype.png",
+      "Quanta-Logotype.png",
+      "Dataforge-Logotype.png",
+      "Vectorly-Logotype.png",
+      "Orbital-Logotype.png",
+      "Synthwave-Logotype.png",
+      "Pixelpush-Logotype.png",
+      "Kernel-Logotype.png"
+    ],
+    "guidelines": [
+      "Nimbus AI-Brand Guidelines.pdf",
+      "Quanta-Brand Guidelines.pdf",
+      "Dataforge-Brand Guidelines.pdf",
+      "Vectorly-Brand Guidelines.pdf",
+      "Orbital-Brand Guidelines.pdf",
+      "Synthwave-Brand Guidelines.pdf",
+      "Pixelpush-Brand Guidelines.pdf",
+      "Kernel-Brand Guidelines.pdf"
+    ],
+    "social": [
+      "Nimbus AI.png",
+      "Quanta.png",
+      "Dataforge.png",
+      "Vectorly.png",
+      "Orbital.png",
+      "Synthwave.png",
+      "Pixelpush.png",
+      "Kernel.png"
+    ],
+    "stationery": [
+      "Nimbus AI.pdf",
+      "Quanta.pdf",
+      "Dataforge.pdf",
+      "Vectorly.pdf",
+      "Orbital.pdf",
+      "Synthwave.pdf",
+      "Pixelpush.pdf",
+      "Kernel.pdf"
+    ],
+    "animation": [
+      "Nimbus AI.gif",
+      "Quanta.gif",
+      "Dataforge.gif",
+      "Vectorly.gif",
+      "Orbital.gif",
+      "Synthwave.gif",
+      "Pixelpush.gif",
+      "Kernel.gif"
+    ]
+  }
+}
