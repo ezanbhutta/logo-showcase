@@ -11,6 +11,12 @@ A small **desktop app** that turns a shared, tagged logo library into polished,
 The app runs locally and opens in the browser. Nothing is uploaded anywhere;
 PDFs stay on the teammate's computer.
 
+> **Two ways to run it:**
+> - **Hosted on Vercel** (zero install, Chrome/Edge) — reads your local folder
+>   in the browser, builds PDFs on-device. See [`web/README.md`](web/README.md).
+> - **Desktop `.exe`** (works in any browser) — the packaged build described
+>   below.
+
 ---
 
 ## For teammates — install & use (Windows)
