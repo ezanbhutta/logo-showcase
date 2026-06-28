@@ -45,6 +45,15 @@
 
           <div class="panel">
             <input type="search" id="logos-search" class="search-full" placeholder="Search brands…  ( / )">
+            <div class="logo-filter-row">
+              <label class="filt"><span class="lbl">Industry</span>
+                <input id="filter-industry" list="industry-list" placeholder="All industries" autocomplete="off">
+                <datalist id="industry-list"></datalist>
+              </label>
+              <label class="filt"><span class="lbl">Logo type</span>
+                <div class="select-wrap"><select id="filter-type"><option value="">All types</option></select></div>
+              </label>
+            </div>
             <div class="picker" id="logos-picker"></div>
             <div class="picker-foot">
               <span id="logos-pickcount" class="muted"></span>
@@ -59,9 +68,16 @@
             <div class="filter-block">
               <div class="filter-head"><span class="lbl">Output</span></div>
               <div class="segmented wide" id="opt-mode" role="radiogroup">
-                <button class="seg active" data-val="slice" role="radio" aria-checked="true">Slice <em>· curated</em></button>
-                <button class="seg" data-val="range" role="radio" aria-checked="false">Range <em>· all</em></button>
+                <button class="seg active" data-val="slice" role="radio" aria-checked="true">Curated</button>
+                <button class="seg" data-val="range" role="radio" aria-checked="false">All</button>
+                <button class="seg" data-val="bytype" role="radio" aria-checked="false">By type</button>
               </div>
+            </div>
+            <div class="filter-block" id="pertype-block" style="display:none">
+              <div class="filter-head"><span class="lbl">Per type</span></div>
+              <div class="select-wrap"><select id="opt-pertype">
+                <option value="">All in each type</option><option value="3">Top 3 each</option><option value="5">Top 5 each</option><option value="10">Top 10 each</option>
+              </select></div>
             </div>
             <details class="options" id="options-panel">
               <summary><span class="lbl" style="margin:0">Presentation options</span><span class="chev">▾</span></summary>
@@ -99,7 +115,6 @@
               <span class="preview-status" id="preview-status" aria-live="polite"><span class="ps-dot"></span><span id="preview-status-text">Up to date</span></span>
               <div class="preview-bar-actions">
                 <button class="iconbtn" id="preview-expand" title="Fullscreen" aria-label="Fullscreen">⤢</button>
-                <button class="iconbtn" id="preview-open2" title="Open in new tab" aria-label="Open in new tab">↗</button>
                 <button class="cta sm" id="preview-download2"><span class="cta-label">Download PDF</span><span class="cta-spin" hidden></span></button>
               </div>
             </div>
@@ -143,30 +158,56 @@
           This browser can't open a local folder. Please use <strong>Google Chrome</strong> or <strong>Microsoft Edge</strong> on a computer.
         </div>
       </div>
-      <div class="panel guide">
+      <div class="panel vguide">
         <h2>How to organise your portfolio folder</h2>
-        <p class="muted">Link <strong>one folder per studio</strong>, named <code>&lt;Studio&gt; Portfolio</code>. Inside it, make
-        one folder per <strong>deliverable type</strong>. Files are named by <strong>brand</strong>:</p>
-        <pre class="tree">Storm Portfolio/             <span class="c">← link once · name = "&lt;Studio&gt; Portfolio"</span>
-├── Logos/                   <span class="c">← Apex Builders-Logotype.png  (png · jpg · pdf)</span>
-├── Brand Guidelines/        <span class="c">← Apex Builders-Brand Guidelines.pdf</span>
-├── Social Media Kit/        <span class="c">← Apex Builders.png</span>
-├── Stationery/              <span class="c">← Apex Builders.pdf</span>
-└── Logo Animation/          <span class="c">← Apex Builders.mp4 / .gif</span></pre>
-        <h3>File formats <span class="req">accepted</span></h3>
-        <table class="fmt">
-          <tr><td><code>Logos</code></td><td><b>PNG / JPG</b> render in the deck · PDF/SVG are listed &amp; downloadable</td></tr>
-          <tr><td><code>Brand Guidelines · Stationery</code></td><td><b>PDF</b> (preview &amp; download) · images also fine</td></tr>
-          <tr><td><code>Social Media Kit</code></td><td><b>PNG / JPG</b> images</td></tr>
-          <tr><td><code>Logo Animation</code></td><td><b>GIF / MP4 / WEBM</b></td></tr>
-        </table>
-        <h3>Naming</h3>
-        <ul class="muted">
-          <li>Folder name = <code>&lt;Studio&gt; Portfolio</code> — the studio identity is detected from it.</li>
-          <li>Logo files: <code>Brand Name-Logotype.png</code>. Guidelines: <code>Brand Name-Brand Guidelines.pdf</code>.</li>
-          <li>Everything else: just the <code>Brand Name</code> + extension. The brand is read from the file name.</li>
-        </ul>
-        <p class="muted">Detected studios from folder name: <span class="mono" id="known-studios"></span>.</p>
+        <p class="muted">Link <strong>one folder per studio</strong>. Inside, make a folder for each deliverable type — files are named by <strong>brand</strong>.</p>
+
+        <div class="vfolder">
+          <span class="vfolder-ico">📁</span>
+          <span class="vfolder-name">&lt;Studio&gt; Portfolio</span>
+          <span class="vfolder-tag">linked once · studio detected from this name</span>
+        </div>
+
+        <div class="vcards">
+          <div class="vcard" style="--c:#E2683C">
+            <div class="vhead"><span class="vico">🔷</span><span class="vname">Logos</span></div>
+            <div class="vex">Apex Builders<b>-Logotype</b>.png</div>
+            <div class="vfmt"><span>PNG</span><span>JPG</span><span>PDF</span></div>
+            <div class="vrole">→ themed showcase deck</div>
+          </div>
+          <div class="vcard" style="--c:#2563A8">
+            <div class="vhead"><span class="vico">📘</span><span class="vname">Brand Guidelines</span></div>
+            <div class="vex">Apex Builders<b>-Brand Guidelines</b>.pdf</div>
+            <div class="vfmt"><span>PDF</span></div>
+            <div class="vrole">→ search · preview</div>
+          </div>
+          <div class="vcard" style="--c:#E84393">
+            <div class="vhead"><span class="vico">📱</span><span class="vname">Social Media Kit</span></div>
+            <div class="vex">Apex Builders.png</div>
+            <div class="vfmt"><span>PNG</span><span>JPG</span></div>
+            <div class="vrole">→ search · preview</div>
+          </div>
+          <div class="vcard" style="--c:#16A085">
+            <div class="vhead"><span class="vico">✉️</span><span class="vname">Stationery</span></div>
+            <div class="vex">Apex Builders.pdf</div>
+            <div class="vfmt"><span>PDF</span><span>PNG</span></div>
+            <div class="vrole">→ search · preview</div>
+          </div>
+          <div class="vcard" style="--c:#6C5CE7">
+            <div class="vhead"><span class="vico">🎬</span><span class="vname">Logo Animation</span></div>
+            <div class="vex">Apex Builders.mp4</div>
+            <div class="vfmt"><span>MP4</span><span>GIF</span><span>WEBM</span></div>
+            <div class="vrole">→ search · preview</div>
+          </div>
+        </div>
+
+        <div class="vnote">
+          <span class="vnote-ico">🔎</span>
+          <div><b>To filter logos by industry &amp; type</b>, drop a <code>tags.csv</code> in the folder (or inside <code>Logos/</code>) with columns
+          <code>brand, industries, types</code> — e.g. <code>Apex Builders, construction|real-estate, combination</code>. The Industry &amp; Type filters then light up.</div>
+        </div>
+
+        <p class="muted" style="margin-top:1rem">Studios detected from the folder name: <span class="mono" id="known-studios"></span>.</p>
       </div>
     </section>
   </main>
@@ -178,8 +219,6 @@
       <header class="modal-head">
         <div><div class="modal-title" id="preview-title">Preview</div><div class="modal-sub" id="preview-sub"></div></div>
         <div class="modal-actions">
-          <button class="ghost dark" id="preview-open">Open in tab</button>
-          <button class="cta sm" id="preview-download"><span class="cta-label">Download</span></button>
           <button class="iconbtn" id="preview-close" data-close aria-label="Close">✕</button>
         </div>
       </header>
