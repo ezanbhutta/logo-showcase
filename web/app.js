@@ -13,12 +13,14 @@ import { INDUSTRIES, TYPES } from "./src/vocab.js";
 const $ = (s) => document.querySelector(s);
 const $$ = (s) => [...document.querySelectorAll(s)];
 const LAST_PROFILE = "ls-last-profile";
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) =>
+  ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
 const state = {
-  source: new FetchSource("demo"), sourceLabel: "Demo logos", isDemo: true,
+  source: new FetchSource("demo"), sourceLabel: "Demo logos", isDemo: true, srcGen: 0,
   profiles: new Map(), meta: new Map(), thumbs: new Map(),
   pendingHandle: null,
-  live: { bytes: null, url: null, running: false, pending: false },
+  live: { bytes: null, url: null, profile: null, running: false, pending: false, wantId: 0 },
   modalUrl: null,
 };
 
@@ -47,7 +49,9 @@ const unionValues = (entries, key) => {
 async function thumbUrl(profile, file) {
   const k = `${profile}/${file}`;
   if (state.thumbs.has(k)) return state.thumbs.get(k);
+  const gen = state.srcGen;
   const url = URL.createObjectURL(await state.source.getBlob(profile, `logos/${file}`));
+  if (gen !== state.srcGen) { URL.revokeObjectURL(url); return url; } // source switched mid-load
   state.thumbs.set(k, url); return url;
 }
 const defaultDate = () => new Date().toLocaleString("en-US", { month: "long", year: "numeric" });
@@ -60,7 +64,7 @@ function downloadUrl(url, filename) {
 function toast(msg, kind = "ok") {
   const el = document.createElement("div");
   el.className = `toast ${kind}`;
-  el.innerHTML = `<span>${kind === "err" ? "✕" : kind === "warn" ? "!" : "✓"}</span><span>${msg}</span>`;
+  el.innerHTML = `<span>${kind === "err" ? "✕" : kind === "warn" ? "!" : "✓"}</span><span>${esc(msg)}</span>`;
   $("#toasts").appendChild(el);
   const kill = () => { el.classList.add("out"); setTimeout(() => el.remove(), 220); };
   const t = setTimeout(kill, 3200);
@@ -91,6 +95,7 @@ function setPreviewStatus(busy) {
 }
 let renderTimer = null;
 function scheduleRender(delay = 350) {
+  state.live.wantId++;            // mark that newer output is wanted
   setPreviewStatus(true);
   clearTimeout(renderTimer);
   renderTimer = setTimeout(runRender, delay);
@@ -112,32 +117,51 @@ async function buildCurrent() {
 async function runRender() {
   if (state.live.running) { state.live.pending = true; return; }
   state.live.running = true;
+  const myId = state.live.wantId;
   setPreviewStatus(true);
+  $("#preview-status").classList.remove("err");
   try {
     const r = await buildCurrent();
+    if (myId !== state.live.wantId) return;   // superseded — a newer render is queued; drop this output
     if (state.live.url) URL.revokeObjectURL(state.live.url);
     state.live.bytes = r.bytes;
+    state.live.profile = r.profile;
     state.live.url = URL.createObjectURL(new Blob([r.bytes], { type: "application/pdf" }));
     const frame = $("#live-frame");
+    frame.onload = null;
     frame.onload = () => { $("#preview-skeleton").hidden = true; frame.hidden = false; setPreviewStatus(false); };
     frame.src = state.live.url + "#toolbar=0&navpanes=0&view=FitH";
     $("#preview-skeleton").hidden = true; frame.hidden = false;
-    setTimeout(() => setPreviewStatus(false), 600);
   } catch (e) {
-    setPreviewStatus(false);
-    $("#preview-status-text").textContent = e.message;
-    $("#preview-status").classList.add("err");
-    setTimeout(() => $("#preview-status").classList.remove("err"), 2500);
+    if (myId === state.live.wantId) {
+      setPreviewStatus(false);
+      $("#preview-status-text").textContent = e.message;
+      $("#preview-status").classList.add("err");
+    }
   } finally {
     state.live.running = false;
-    if (state.live.pending) { state.live.pending = false; runRender(); }
+    if (state.live.pending || myId !== state.live.wantId) { state.live.pending = false; runRender(); }
+    else if (!$("#preview-status").classList.contains("err")) setPreviewStatus(false);
   }
+}
+function whenRenderIdle(timeout = 5000) {
+  return new Promise((res) => {
+    const start = Date.now();
+    const t = setInterval(() => {
+      if ((!state.live.running && !state.live.pending) || Date.now() - start > timeout) { clearInterval(t); res(); }
+    }, 70);
+  });
 }
 async function downloadLive() {
   const btn = $("#preview-download2");
-  if (!state.live.bytes) { setBusy(btn, true); await runRender(); setBusy(btn, false); }
-  if (!state.live.bytes) return;
-  downloadUrl(state.live.url, `${$("#make-profile").value}-${mk.mode}.pdf`);
+  if (state.live.running || state.live.pending || !state.live.bytes) {
+    setBusy(btn, true);
+    if (!state.live.bytes && !state.live.running) scheduleRender(0);
+    await whenRenderIdle();
+    setBusy(btn, false);
+  }
+  if (!state.live.bytes) { toast("Nothing to download yet", "warn"); return; }
+  downloadUrl(state.live.url, `${state.live.profile || $("#make-profile").value}-${mk.mode}.pdf`);
   btn.classList.add("success");
   const lab = btn.querySelector(".cta-label"); const old = lab.textContent; lab.textContent = "✓ Saved";
   setTimeout(() => { btn.classList.remove("success"); lab.textContent = old; }, 1400);
@@ -158,12 +182,16 @@ function openModal(bytes, filename, sub) {
   $("#preview-open").onclick = () => window.open(state.modalUrl, "_blank");
   $("#preview").hidden = false;
 }
-const closeModal = () => { $("#preview").hidden = true; $("#preview-frame").src = "about:blank"; };
+function closeModal() {
+  $("#preview").hidden = true; $("#preview-frame").src = "about:blank";
+  if (state.modalUrl) { URL.revokeObjectURL(state.modalUrl); state.modalUrl = null; }
+}
 
 // ====== source switching ===================================================
 async function useDemo() { state.source = new FetchSource("demo"); state.sourceLabel = "Demo logos"; state.isDemo = true; await onSourceChanged(); }
 async function useFolder(h) { state.source = new FsSource(h); state.sourceLabel = h.name || "Local folder"; state.isDemo = false; await onSourceChanged(); }
 async function onSourceChanged() {
+  state.srcGen++;
   state.profiles.clear(); state.meta.clear();
   state.thumbs.forEach((u) => URL.revokeObjectURL(u)); state.thumbs.clear();
   $("#source-text").textContent = state.sourceLabel;
@@ -204,7 +232,8 @@ function renderPills(container, values, set, counts, onChange) {
   container.innerHTML = "";
   values.forEach((v) => {
     const b = document.createElement("button");
-    b.type = "button"; b.className = "pill"; b.setAttribute("aria-pressed", set.has(v) ? "true" : "false");
+    b.type = "button"; b.className = "pill"; b.dataset.value = v;
+    b.setAttribute("aria-pressed", set.has(v) ? "true" : "false");
     const c = counts ? `<span class="pc">${counts[v] || 0}</span>` : "";
     b.innerHTML = `${v.replace(/-/g, " ")}${c}`;
     if (set.has(v)) b.classList.add("active");
@@ -238,8 +267,15 @@ function setBusy(btn, busy) {
   btn.disabled = busy;
   const sp = btn.querySelector(".cta-spin"); if (sp) sp.hidden = !busy;
 }
-function syncMode() { $("#make-count-block").style.display = mk.mode === "slice" ? "" : "none"; }
-function syncLayout() { $("#opt-cols-field").style.opacity = mk.layout === "lookbook" ? ".4" : "1"; }
+function syncMode() {
+  const range = mk.mode === "range";
+  $("#make-count-block").style.display = range ? "none" : "";
+  // Layout (grid/lookbook) only applies to slice; range is always a contact sheet.
+  const lay = $("#opt-layout"); lay.style.opacity = range ? ".4" : "1"; lay.style.pointerEvents = range ? "none" : "";
+}
+function syncLayout() {
+  const f = $("#opt-cols-field"); f.style.opacity = mk.layout === "lookbook" ? ".4" : "1"; f.style.pointerEvents = mk.layout === "lookbook" ? "none" : "";
+}
 
 // ====== Recents ============================================================
 const loadRecents = () => { try { return JSON.parse(localStorage.getItem("ls-recents") || "[]"); } catch { return []; } };
@@ -269,8 +305,8 @@ async function applyRecent(r) {
   scheduleRender(60);
 }
 function togglePill(c, value, set, on) {
-  const btn = [...c.querySelectorAll(".pill")].find((b) => b.textContent.replace(/\d+$/, "").trim() === value.replace(/-/g, " "));
-  if (btn) { btn.classList.toggle("active", on); if (on) set.add(value); else set.delete(value); }
+  const btn = [...c.querySelectorAll(".pill")].find((b) => b.dataset.value === value);
+  if (btn) { btn.classList.toggle("active", on); btn.setAttribute("aria-pressed", String(on)); if (on) set.add(value); else set.delete(value); }
 }
 function setSeg(el, val) { el.querySelectorAll(".seg").forEach((b) => { const a = b.dataset.val === val; b.classList.toggle("active", a); b.setAttribute("aria-checked", String(a)); }); }
 function wireSeg(el, cb) {
@@ -312,9 +348,9 @@ async function renderGallery() {
   for (const e of visible) {
     const el = document.createElement("div");
     el.className = "lcard" + (gal.sel.has(e.file) ? " sel" : "");
-    el.innerHTML = `<div class="thumb"><img alt="${e.name}"><span class="check">✓</span>
+    el.innerHTML = `<div class="thumb"><img alt="${esc(e.name)}"><span class="check">✓</span>
       <button class="info" title="Details" aria-label="Details">i</button></div>
-      <div class="cap"><span class="tier">T${e.tier}</span><span class="nm">${e.name}</span><span class="mt">${typeLabel(e.types)}</span></div>`;
+      <div class="cap"><span class="tier">T${e.tier}</span><span class="nm">${esc(e.name)}</span><span class="mt">${esc(typeLabel(e.types))}</span></div>`;
     el.querySelector("img").src = await thumbUrl(gal.profile, e.file);
     el.querySelector(".info").addEventListener("click", (ev) => { ev.stopPropagation(); openDetail(e); });
     el.addEventListener("click", () => toggleSelect(e.file));
@@ -335,25 +371,39 @@ function renderTray() {
   $("#gal-selcount").textContent = String(gal.order.length);
   tray.innerHTML = "";
   const byFile = new Map(gal.entries.map((e) => [e.file, e]));
-  gal.order.forEach((file, idx) => {
+  gal.order.forEach((file) => {
     const e = byFile.get(file); if (!e) return;
     const chip = document.createElement("div");
-    chip.className = "tray-item"; chip.draggable = true; chip.dataset.idx = idx;
-    chip.innerHTML = `<img alt=""><span>${e.name}</span><button class="rm" aria-label="Remove">×</button>`;
+    chip.className = "tray-item"; chip.draggable = true; chip.dataset.file = file;
+    chip.innerHTML = `<img alt=""><span>${esc(e.name)}</span><button class="rm" aria-label="Remove">×</button>`;
     thumbUrl(gal.profile, file).then((u) => { const im = chip.querySelector("img"); if (im) im.src = u; });
     chip.querySelector(".rm").addEventListener("click", (ev) => { ev.stopPropagation(); toggleSelect(file); });
-    chip.addEventListener("dragstart", () => chip.classList.add("dragging"));
-    chip.addEventListener("dragend", () => chip.classList.remove("dragging"));
-    chip.addEventListener("dragover", (ev) => {
-      ev.preventDefault();
-      const dragging = tray.querySelector(".dragging"); if (!dragging || dragging === chip) return;
-      const items = [...tray.querySelectorAll(".tray-item")];
-      const from = +dragging.dataset.idx, to = +chip.dataset.idx;
-      if (from === to) return;
-      gal.order.splice(to, 0, gal.order.splice(from, 1)[0]);
-      renderTray();
-    });
     tray.appendChild(chip);
+  });
+}
+// Drag-reorder: move the DOM node live, commit gal.order from DOM on drop —
+// avoids the stale-index corruption of re-rendering mid-drag.
+function dragAfter(container, x) {
+  let closest = { offset: -Infinity, el: null };
+  for (const child of container.querySelectorAll(".tray-item:not(.dragging)")) {
+    const box = child.getBoundingClientRect();
+    const offset = x - box.left - box.width / 2;
+    if (offset < 0 && offset > closest.offset) closest = { offset, el: child };
+  }
+  return closest.el;
+}
+function commitTrayOrder() {
+  gal.order = [...$("#gal-tray").querySelectorAll(".tray-item")].map((c) => c.dataset.file);
+}
+function wireTrayDrag() {
+  const tray = $("#gal-tray");
+  tray.addEventListener("dragstart", (e) => { const it = e.target.closest(".tray-item"); if (it) { it.classList.add("dragging"); e.dataTransfer.effectAllowed = "move"; } });
+  tray.addEventListener("dragend", (e) => { const it = e.target.closest(".tray-item"); if (it) it.classList.remove("dragging"); commitTrayOrder(); });
+  tray.addEventListener("dragover", (e) => {
+    e.preventDefault();
+    const dragging = tray.querySelector(".dragging"); if (!dragging) return;
+    const after = dragAfter(tray, e.clientX);
+    if (after == null) tray.appendChild(dragging); else tray.insertBefore(dragging, after);
   });
 }
 async function galPreview() {
@@ -375,8 +425,8 @@ function openDetail(e) {
   $("#detail-meta").innerHTML =
     row("Tier", `T${e.tier}`) + (e.year ? row("Year", e.year) : "") +
     row("Industries", tags(e.industries)) + row("Types", tags(e.types)) +
-    (e.notes ? row("Notes", e.notes) : "") +
-    `<div class="drow"><span class="dk">File</span><span class="dv mono">${e.file}
+    (e.notes ? row("Notes", esc(e.notes)) : "") +
+    `<div class="drow"><span class="dk">File</span><span class="dv mono">${esc(e.file)}
       <button class="mini" id="copy-file">copy</button></span></div>`;
   $("#detail").hidden = false;
   const cf = $("#copy-file"); if (cf) cf.onclick = () => { navigator.clipboard?.writeText(e.file); toast("Filename copied"); };
@@ -517,6 +567,7 @@ function wire() {
   });
   $("#gal-clearsel").addEventListener("click", () => { gal.sel.clear(); gal.order = []; renderGallery(); });
   $("#gal-preview").dataset.label = "Preview selection"; $("#gal-preview").addEventListener("click", galPreview);
+  wireTrayDrag();
 
   // modals
   $$("[data-close]").forEach((b) => b.addEventListener("click", closeModal));
