@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Logo Gallery</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="dot"></span>
+      <h1 id="profile-name">Gallery</h1>
+      <span class="count" id="count-badge"></span>
+    </div>
+    <div class="search">
+      <input id="search" type="search" placeholder="Search by name…" autocomplete="off">
+    </div>
+  </header>
+
+  <div class="layout">
+    <aside class="filters">
+      <section>
+        <h2>Industry</h2>
+        <div id="industry-filters" class="chips"></div>
+      </section>
+      <section>
+        <h2>Type</h2>
+        <div id="type-filters" class="chips"></div>
+      </section>
+      <section>
+        <h2>Match</h2>
+        <div class="chips">
+          <button class="chip mode active" data-mode="any">Any</button>
+          <button class="chip mode" data-mode="all">All</button>
+        </div>
+      </section>
+      <button id="clear" class="clear">Clear filters</button>
+    </aside>
+
+    <main>
+      <div id="grid" class="grid"></div>
+      <p id="empty" class="empty" hidden>No marks match these filters.</p>
+    </main>
+  </div>
+
+  <footer class="selbar" id="selbar" hidden>
+    <span id="sel-count">0 selected</span>
+    <div class="selbar-actions">
+      <button id="copy">Copy file list</button>
+      <button id="export" class="primary">Export slice command</button>
+      <button id="clear-sel">Clear</button>
+    </div>
+  </footer>
+
+  <dialog id="export-dialog">
+    <h3>Export this selection as a slice</h3>
+    <p>Run from the repo root to build the client-facing PDF:</p>
+    <pre id="export-cmd"></pre>
+    <div class="dialog-actions">
+      <button id="copy-cmd" class="primary">Copy command</button>
+      <button id="close-dialog">Close</button>
+    </div>
+  </dialog>
+
+  <script src="app.js"></script>
+</body>
+</html>
