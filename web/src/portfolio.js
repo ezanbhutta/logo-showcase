@@ -16,6 +16,46 @@ import { THEMES, detectProfile } from "./themes.js";
 import { parseCSV } from "./csv.js";
 
 const norm = (v) => v.trim().toLowerCase().replace(/\s+/g, "-");
+// Slug for industry / type tokens parsed from filenames (punctuation-safe).
+const slug = (v) => String(v).trim().toLowerCase().replace(/&/g, " and ")
+  .replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+const uniq = (a) => [...new Set(a.filter(Boolean))];
+
+// Map a free-text logo-type descriptor to a controlled type slug (see vocab.js).
+const LOGO_TYPE_MAP = {
+  logotype: "wordmark", wordmark: "wordmark", "word-mark": "wordmark", text: "wordmark",
+  lettermark: "lettermark", "letter-mark": "lettermark", monogram: "lettermark", initial: "lettermark", initials: "lettermark",
+  pictorial: "pictorial", "pictorial-mark": "pictorial", brandmark: "pictorial", "brand-mark": "pictorial",
+  logomark: "pictorial", "logo-mark": "pictorial", symbol: "pictorial", icon: "pictorial", "icon-mark": "pictorial",
+  abstract: "abstract", "abstract-mark": "abstract",
+  mascot: "mascot", character: "mascot",
+  combination: "combination", "combination-mark": "combination", combo: "combination", combined: "combination",
+  emblem: "emblem", badge: "emblem", crest: "emblem", seal: "emblem",
+};
+const mapLogoType = (d) => { const s = slug(d); return LOGO_TYPE_MAP[s] || s; };
+const isLogoDesc = (d) => { const s = slug(d); return s in LOGO_TYPE_MAP || /(^|-)(mark|type)$/.test(s); };
+const isGuideDesc = (d) => /guide|guideline|brand-?book|style/.test(slug(d));
+
+// Filenames follow:  Brand-Industry-Descriptor (logos / guidelines) or
+//                    Brand-Industry           (social / stationery / animation).
+// Industry and descriptor are optional; brand is always the first segment.
+function parseName(name, typeKey) {
+  const parts = name.split(/\s*-\s*/).map((s) => s.trim()).filter(Boolean);
+  const out = { brand: parts[0] || name, industry: "", descriptor: "" };
+  if (parts.length < 2) return out;
+  const hasDesc = typeKey === "logos" || typeKey === "guidelines";
+  if (hasDesc) {
+    if (parts.length >= 3) { out.industry = parts[1]; out.descriptor = parts.slice(2).join(" "); }
+    else {                                   // 2 parts → industry OR descriptor
+      const p = parts[1];
+      if ((typeKey === "logos" && isLogoDesc(p)) || (typeKey === "guidelines" && isGuideDesc(p))) out.descriptor = p;
+      else out.industry = p;
+    }
+  } else {
+    out.industry = parts.slice(1).join(" ");
+  }
+  return out;
+}
 // Parse an optional tags.csv (columns: brand|file, industries, types) into a
 // Map keyed by lowercased brand → { industries[], types[] }.
 function parseTags(text) {
@@ -56,20 +96,33 @@ function kindOf(ext) {
   if (VIDEO_EXT.includes(ext)) return "video";
   return "image";              // png/jpg/webp/svg/gif render as <img>
 }
-function brandFrom(filename, strip) {
-  let s = filename.replace(/\.[^.]+$/, "").trim();
-  for (const suf of strip) {
-    const re = new RegExp("[\\s_–—-]*" + suf.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "\\s*$", "i");
-    s = s.replace(re, "").trim();
-  }
-  return s.replace(/[\s_–—-]+$/, "").trim() || filename;
-}
+// Build asset records, deriving brand / industry / descriptor from the filename.
 function classify(files, typeKey) {
-  const t = TYPES.find((x) => x.key === typeKey);
   return files
     .filter((f) => ALL_EXT.includes(extOf(f)))
-    .map((f) => ({ brand: brandFrom(f, t.strip), file: f, ext: extOf(f), kind: kindOf(extOf(f)) }))
+    .map((f) => {
+      const base = f.replace(/\.[^.]+$/, "").trim();
+      const p = parseName(base, typeKey);
+      return {
+        brand: p.brand, file: f, ext: extOf(f), kind: kindOf(extOf(f)),
+        _industry: p.industry ? slug(p.industry) : "", _descriptor: p.descriptor,
+      };
+    })
     .sort((a, b) => a.brand.localeCompare(b.brand));
+}
+
+// Merge filename-derived industry/type with any tags.csv entry for the brand.
+function attachMeta(list, typeKey, tags) {
+  for (const a of list) {
+    const t = (tags && tags.get(a.brand.toLowerCase())) || {};
+    a.industries = uniq([...(a._industry ? [a._industry] : []), ...(t.industries || [])]);
+    if (typeKey === "logos")
+      a.types = uniq([...(a._descriptor ? [mapLogoType(a._descriptor)] : []), ...(t.types || [])]);
+    a.industryLabel = a._industry ? a._industry.replace(/-/g, " ") : "";
+    a.descriptor = a._descriptor || "";
+    delete a._industry; delete a._descriptor;
+  }
+  return list;
 }
 
 // ---- File System Access portfolio -----------------------------------------
@@ -105,8 +158,7 @@ export class FsPortfolio {
     const files = [];
     for await (const [fname, h] of d[typeKey].entries()) if (h.kind === "file" && fname.toLowerCase() !== "tags.csv") files.push(fname);
     const list = classify(files, typeKey);
-    if (typeKey === "logos") { const tags = await this._tags(); for (const a of list) { const t = tags.get(a.brand.toLowerCase()) || {}; a.industries = t.industries || []; a.types = t.types || []; } }
-    return list;
+    return attachMeta(list, typeKey, await this._tags());
   }
   async hasTags() { return (await this._tags()).size > 0; }
   async getBlob(typeKey, file) {
@@ -132,8 +184,9 @@ export class DemoPortfolio {
   async assets(typeKey) {
     const m = await this._manifest();
     const list = classify(m.types[typeKey] || [], typeKey);
-    if (typeKey === "logos" && m.tags) for (const a of list) { const t = m.tags[a.brand] || {}; a.industries = (t.industries || []).map(norm); a.types = (t.types || []).map(norm); }
-    return list;
+    const tags = new Map(Object.entries(m.tags || {}).map(([k, v]) => [k.toLowerCase(),
+      { industries: (v.industries || []).map(norm), types: (v.types || []).map(norm) }]));
+    return attachMeta(list, typeKey, tags);
   }
   async hasTags() { const m = await this._manifest(); return !!m.tags; }
   async getBlob(typeKey, file) {

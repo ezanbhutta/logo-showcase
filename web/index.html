@@ -103,7 +103,7 @@
               </div>
               <div class="opt-toggles">
                 <label class="toggle"><input type="checkbox" id="opt-cover" checked><span>Cover page</span></label>
-                <label class="toggle"><input type="checkbox" id="opt-closing" checked><span>Closing page</span></label>
+                <label class="toggle"><input type="checkbox" id="opt-closing"><span>Closing page</span></label>
               </div>
             </details>
           </div>
@@ -172,7 +172,8 @@
       </div>
       <div class="panel vguide">
         <h2>How to organise your portfolio folder</h2>
-        <p class="muted">Link <strong>one folder per studio</strong>. Inside, make a folder for each deliverable type — files are named by <strong>brand</strong>.</p>
+        <p class="muted">Link <strong>one folder per studio</strong>. Inside, make a folder for each deliverable type. File names carry the
+          <strong>brand</strong>, the <strong>industry</strong>, and (for logos &amp; guidelines) the <strong>type</strong> — separated by hyphens.</p>
 
         <div class="vfolder">
           <span class="vfolder-ico">📁</span>
@@ -180,46 +181,59 @@
           <span class="vfolder-tag">linked once · studio detected from this name</span>
         </div>
 
+        <div class="vrule">
+          <span class="vrule-k">Logos &amp; Brand Guidelines</span>
+          <code><b>Brand</b>-<i>Industry</i>-<u>Type</u>.ext</code>
+        </div>
+        <div class="vrule">
+          <span class="vrule-k">Social · Stationery · Animation</span>
+          <code><b>Brand</b>-<i>Industry</i>.ext</code>
+        </div>
+
         <div class="vcards">
           <div class="vcard" style="--c:#E2683C">
             <div class="vhead"><span class="vico">🔷</span><span class="vname">Logos</span></div>
-            <div class="vex">Apex Builders<b>-Logotype</b>.png</div>
-            <div class="vfmt"><span>PNG</span><span>JPG</span><span>PDF</span></div>
+            <div class="vex"><b>Apex Builders</b>-<i>Construction</i>-<u>Logotype</u>.png</div>
+            <div class="vfmt"><span>PNG</span><span>JPG</span><span>SVG</span><span>PDF</span></div>
             <div class="vrole">→ themed showcase deck</div>
           </div>
           <div class="vcard" style="--c:#2563A8">
             <div class="vhead"><span class="vico">📘</span><span class="vname">Brand Guidelines</span></div>
-            <div class="vex">Apex Builders<b>-Brand Guidelines</b>.pdf</div>
+            <div class="vex"><b>Apex Builders</b>-<i>Construction</i>-<u>Brand Guidelines</u>.pdf</div>
             <div class="vfmt"><span>PDF</span></div>
             <div class="vrole">→ search · preview</div>
           </div>
           <div class="vcard" style="--c:#E84393">
             <div class="vhead"><span class="vico">📱</span><span class="vname">Social Media Kit</span></div>
-            <div class="vex">Apex Builders.png</div>
+            <div class="vex"><b>Apex Builders</b>-<i>Construction</i>.png</div>
             <div class="vfmt"><span>PNG</span><span>JPG</span></div>
             <div class="vrole">→ search · preview</div>
           </div>
           <div class="vcard" style="--c:#16A085">
             <div class="vhead"><span class="vico">✉️</span><span class="vname">Stationery</span></div>
-            <div class="vex">Apex Builders.pdf</div>
+            <div class="vex"><b>Apex Builders</b>-<i>Construction</i>.pdf</div>
             <div class="vfmt"><span>PDF</span><span>PNG</span></div>
             <div class="vrole">→ search · preview</div>
           </div>
           <div class="vcard" style="--c:#6C5CE7">
             <div class="vhead"><span class="vico">🎬</span><span class="vname">Logo Animation</span></div>
-            <div class="vex">Apex Builders.mp4</div>
+            <div class="vex"><b>Apex Builders</b>-<i>Construction</i>.mp4</div>
             <div class="vfmt"><span>MP4</span><span>GIF</span><span>WEBM</span></div>
             <div class="vrole">→ search · preview</div>
           </div>
         </div>
 
-        <div class="vnote">
-          <span class="vnote-ico">🔎</span>
-          <div><b>To filter logos by industry &amp; type</b>, drop a <code>tags.csv</code> in the folder (or inside <code>Logos/</code>) with columns
-          <code>brand, industries, types</code> — e.g. <code>Apex Builders, construction|real-estate, combination</code>. The Industry &amp; Type filters then light up.</div>
+        <div class="vlegend">
+          <span><b class="vb">Brand</b> the client name — shown on every card &amp; deck tile</span>
+          <span><i class="vi">Industry</i> e.g. <code>Construction</code>, <code>Real Estate</code>, <code>AI Data</code> — powers the Industry filter</span>
+          <span><u class="vu">Type</u> logo type e.g. <code>Logotype</code>, <code>Wordmark</code>, <code>Combination</code>, <code>Mascot</code>, <code>Emblem</code> — powers the Type filter</span>
         </div>
 
-        <p class="muted" style="margin-top:1rem">Studios detected from the folder name: <span class="mono" id="known-studios"></span>.</p>
+        <div class="vnote">
+          <span class="vnote-ico">💡</span>
+          <div>The <b>Industry</b> and <b>Type</b> come straight from the file name — no spreadsheet needed. (You can still add a
+          <code>tags.csv</code> to override or enrich them.) Marks render in the deck from <b>PNG, JPG, SVG and PDF</b>.</div>
+        </div>
       </div>
     </section>
   </main>

@@ -10,54 +10,56 @@
   },
   "types": {
     "logos": [
-      "Nimbus AI-Logotype.png",
-      "Quanta-Logotype.png",
-      "Dataforge-Logotype.png",
-      "Vectorly-Logotype.png",
-      "Orbital-Logotype.png",
-      "Synthwave-Logotype.png",
-      "Pixelpush-Logotype.png",
-      "Kernel-Logotype.png"
+      "Nimbus AI-AI Data-Abstract.png",
+      "Quanta-Technology SaaS-Combination.png",
+      "Dataforge-AI Data-Abstract.png",
+      "Vectorly-Marketing Agency-Abstract.png",
+      "Orbital-Technology SaaS-Pictorial.png",
+      "Synthwave-Media Entertainment-Combination.png",
+      "Pixelpush-Marketing Agency-Pictorial.png",
+      "Kernel-Technology SaaS-Wordmark.png",
+      "Verda-Health Medical-Wordmark.svg",
+      "Ironclad-Industrial Manufacturing-Emblem.pdf"
     ],
     "guidelines": [
-      "Nimbus AI-Brand Guidelines.pdf",
-      "Quanta-Brand Guidelines.pdf",
-      "Dataforge-Brand Guidelines.pdf",
-      "Vectorly-Brand Guidelines.pdf",
-      "Orbital-Brand Guidelines.pdf",
-      "Synthwave-Brand Guidelines.pdf",
-      "Pixelpush-Brand Guidelines.pdf",
-      "Kernel-Brand Guidelines.pdf"
+      "Nimbus AI-AI Data-Brand Guidelines.pdf",
+      "Quanta-Technology SaaS-Brand Guidelines.pdf",
+      "Dataforge-AI Data-Brand Guidelines.pdf",
+      "Vectorly-Marketing Agency-Brand Guidelines.pdf",
+      "Orbital-Technology SaaS-Brand Guidelines.pdf",
+      "Synthwave-Media Entertainment-Brand Guidelines.pdf",
+      "Pixelpush-Marketing Agency-Brand Guidelines.pdf",
+      "Kernel-Technology SaaS-Brand Guidelines.pdf"
     ],
     "social": [
-      "Nimbus AI.png",
-      "Quanta.png",
-      "Dataforge.png",
-      "Vectorly.png",
-      "Orbital.png",
-      "Synthwave.png",
-      "Pixelpush.png",
-      "Kernel.png"
+      "Nimbus AI-AI Data.png",
+      "Quanta-Technology SaaS.png",
+      "Dataforge-AI Data.png",
+      "Vectorly-Marketing Agency.png",
+      "Orbital-Technology SaaS.png",
+      "Synthwave-Media Entertainment.png",
+      "Pixelpush-Marketing Agency.png",
+      "Kernel-Technology SaaS.png"
     ],
     "stationery": [
-      "Nimbus AI.pdf",
-      "Quanta.pdf",
-      "Dataforge.pdf",
-      "Vectorly.pdf",
-      "Orbital.pdf",
-      "Synthwave.pdf",
-      "Pixelpush.pdf",
-      "Kernel.pdf"
+      "Nimbus AI-AI Data.pdf",
+      "Quanta-Technology SaaS.pdf",
+      "Dataforge-AI Data.pdf",
+      "Vectorly-Marketing Agency.pdf",
+      "Orbital-Technology SaaS.pdf",
+      "Synthwave-Media Entertainment.pdf",
+      "Pixelpush-Marketing Agency.pdf",
+      "Kernel-Technology SaaS.pdf"
     ],
     "animation": [
-      "Nimbus AI.gif",
-      "Quanta.gif",
-      "Dataforge.gif",
-      "Vectorly.gif",
-      "Orbital.gif",
-      "Synthwave.gif",
-      "Pixelpush.gif",
-      "Kernel.gif"
+      "Nimbus AI-AI Data.gif",
+      "Quanta-Technology SaaS.gif",
+      "Dataforge-AI Data.gif",
+      "Vectorly-Marketing Agency.gif",
+      "Orbital-Technology SaaS.gif",
+      "Synthwave-Media Entertainment.gif",
+      "Pixelpush-Marketing Agency.gif",
+      "Kernel-Technology SaaS.gif"
     ]
   },
   "tags": {
