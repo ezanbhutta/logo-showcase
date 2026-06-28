@@ -1,104 +1,62 @@
-# Logo Showcase — Web app (Vercel + local folder)
+# Logo Showcase — Web app (Vercel + local portfolio folder)
 
-A static web app, hosted on **Vercel**, that reads your logo library from a
-**local folder on each teammate's computer** and builds client PDFs **entirely
-in the browser**. Nothing is uploaded — the logos never leave the machine.
+A static web app, hosted on **Vercel**, that reads a studio's **portfolio folder
+on the local computer** and turns it into client-ready deliverables — entirely
+in the browser. Nothing is uploaded.
 
-## Features
+## The model
 
-- **10 distinct studios** — XStudioz, Storm, Dygram, Carpicon, WeDesign, BIC,
-  Abdul Haseeb, Alee Studioz, Eikon, Grid — each with its own palette, font
-  pairing, layout and **cover style**, so no two decks read as related.
-- **Live preview** — generate and view the PDF in-app before downloading.
-- **Client personalisation** — add a client name and date; the cover prints
-  *"Prepared for …"* like an agency deliverable.
-- **Agency-grade PDFs** — themed cover + numbered logo grid + running footers +
-  a closing page, with embedded fonts (Archivo, Spectral, Space Grotesk, Sora,
-  Syne, DM Sans, Fraunces).
-- **Gallery** — browse, filter, search and multi-select marks, then preview a
-  bespoke slice.
-- **Recents** — your last few presentations, one click to rebuild.
-- Slice (client deliverable) and Range sheet (breadth) modes; count slider.
+Each studio links **one folder, once**, named `<Studio> Portfolio` (e.g.
+`Storm Portfolio`). The app **detects the studio from the folder name** and
+applies its identity — **no dropdown**. Inside are deliverable-type folders;
+files are named by brand:
 
-## How it can be "hosted online but read a local folder"
+```
+Storm Portfolio/            ← link once · name = "<Studio> Portfolio"
+├── Logos/                  Apex Builders-Logotype.png   (png · jpg · pdf)
+├── Brand Guidelines/       Apex Builders-Brand Guidelines.pdf
+├── Social Media Kit/       Apex Builders.png
+├── Stationery/             Apex Builders.pdf
+└── Logo Animation/         Apex Builders.mp4 / .gif
+```
 
-A web server (Vercel) **cannot** reach files on someone's PC. What *can* is the
-**browser**, via the [File System Access API](https://developer.mozilla.org/docs/Web/API/File_System_Access_API):
-the user picks a folder once, and the browser reads it locally. So everything —
-reading logos, generating PDFs (with [pdf-lib](https://pdf-lib.js.org/)) — runs
-client-side. Vercel only serves the app shell.
+- **Logos** → a themed **showcase**: pick the marks, preview a PDF deck live,
+  download. PNG/JPG render in the deck; PDF/SVG are listed and downloadable.
+- **Brand Guidelines / Social Media Kit / Stationery / Logo Animation** →
+  **search → preview → download → share** with the client.
 
-**Requirement:** the File System Access API works in **Chrome or Edge on
-desktop**. Safari and Firefox can't open a local folder (they can still use the
-built-in demo logos).
+The studio identity (palette, fonts, cover style) is **baked into the app** for
+the ten studios (XStudioz, Storm, Dygram, Carpicon, WeDesign, BIC, Abdul Haseeb,
+Alee Studioz, Eikon, Grid); the folder name picks one. An unrecognised name gets
+a clean default theme named after the folder.
+
+## How it reads a local folder from a hosted site
+
+A web server can't reach files on a PC; the **browser** can, via the
+[File System Access API](https://developer.mozilla.org/docs/Web/API/File_System_Access_API).
+The user picks the folder once (remembered via IndexedDB) and all reading +
+PDF building runs client-side. **Works in Chrome/Edge on desktop.** Other
+browsers fall back to the bundled demo portfolio.
 
 ## Deploy to Vercel
 
-This folder (`web/`) is a static site — no build step.
-
-**Option A — Vercel dashboard (easiest):**
-1. Go to <https://vercel.com/new> and import the `ezanbhutta/logo-showcase` repo.
-2. Set **Root Directory** to `web`.
-3. Framework preset: **Other**. Build command: *(leave empty)*. Output dir: `.`
-4. Deploy. You get a URL like `https://logo-showcase.vercel.app`.
-
-**Option B — Vercel CLI:**
-```bash
-npm i -g vercel
-cd web
-vercel --prod
-```
-
-## Using it (teammates)
-
-1. Install **Google Drive for Desktop** so the shared library folder syncs to
-   the PC (shows up as a drive, often `G:`).
-2. Open the Vercel URL in **Chrome or Edge**.
-3. **Settings → Connect library folder** → pick the synced Drive folder. Done
-   once (the choice is remembered).
-4. **Make a PDF** (profile + filters → Generate → the PDF downloads) or
-   **Browse gallery** (select logos → *Make PDF from selection*).
-
-Until a folder is connected, the app shows the bundled **demo logos** so it
-works immediately.
-
-## How the library folder must look
-
-Same structure as the rest of the project — one sub-folder per profile:
-
-```
-<your library folder>/
-├── storm/
-│   ├── logos/*.png
-│   ├── tags.csv
-│   └── theme.json
-└── eikon/ …
-```
-
-The admin maintains this in Google Drive; everyone points the app at their
-synced copy.
+`web/` is a static site — no build step.
+1. <https://vercel.com/new> → import `ezanbhutta/logo-showcase`.
+2. **Root Directory** = `web`. Framework: **Other**. Build command: empty.
+3. Deploy.
 
 ## Files
 
 ```
 web/
-├── index.html        app shell (3 views: Make a PDF / Gallery / Settings)
-├── styles.css
-├── app.js            controller: views, data source, download
+├── index.html / app.js / styles.css   app shell, controller, design system
 ├── src/
-│   ├── source.js     File System Access + demo source, handle persistence
-│   ├── vocab.js      controlled vocabulary (mirrors engine/vocab.py)
-│   ├── csv.js        CSV parser
-│   ├── library.js    parse + validate tags.csv
-│   ├── curate.js     filter + rank
-│   ├── theme.js      theme.json + defaults
-│   ├── images.js     in-browser preview downscaling
-│   └── pdf.js        client-side PDF (slice + range) via pdf-lib
-├── fonts/            Archivo + Spectral (embedded into PDFs)
-├── lib/              pdf-lib + fontkit (vendored)
-├── demo/             bundled demo library (works with no folder connected)
-└── vercel.json
+│   ├── portfolio.js   read deliverable-type folders, parse brand from filename
+│   ├── themes.js      10 baked-in studio identities + folder-name detection
+│   ├── pdf.js         client-side themed PDF (slice / range / lookbook)
+│   ├── images.js      in-browser preview downscaling
+│   └── source.js      File System Access handle persistence
+├── fonts/             Inter, Space Grotesk, JetBrains Mono (UI) + 7 PDF families
+├── lib/               pdf-lib + fontkit (vendored)
+└── demo/portfolio/    bundled demo portfolio (works before linking)
 ```
-
-The Python engine (`engine/`, `webapp/`, desktop `.exe`) still exists for the
-offline/desktop route; this `web/` app is the hosted, zero-install version.

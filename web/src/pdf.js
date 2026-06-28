@@ -300,7 +300,7 @@ export async function renderSlice(src, profile, theme, entries, query, opts = {}
   const F = await makeFonts(pdf, T);
   const pal = T.palette;
   const tiles = await embedPreviews(pdf, src, profile, entries, pal.paper);
-  const subtitle = titleCase(describeQuery(query.industries, query.types, query.matchAll));
+  const subtitle = opts.subtitle || titleCase(describeQuery(query.industries, query.types, query.matchAll));
   const ctx = { subtitle, n: entries.length, clientName: opts.clientName || "", dateStr: opts.dateStr || "" };
   const includeCover = opts.includeCover !== false;
   const includeClosing = opts.includeClosing !== false;
@@ -328,7 +328,7 @@ export async function renderRange(src, profile, theme, entries, query, opts = {}
   const F = await makeFonts(pdf, T);
   const pal = T.palette;
   const tiles = await embedPreviews(pdf, src, profile, entries, pal.paper);
-  const subtitle = titleCase(describeQuery(query.industries, query.types, query.matchAll));
+  const subtitle = opts.subtitle || titleCase(describeQuery(query.industries, query.types, query.matchAll));
   const title = T.labels.range_title || "Full range";
   const n = entries.length;
   const ctx = { subtitle, n, clientName: opts.clientName || "", dateStr: opts.dateStr || "" };
