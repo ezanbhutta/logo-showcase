@@ -4,118 +4,157 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Logo Showcase</title>
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><circle cx='16' cy='16' r='12' fill='%23E2683C'/></svg>">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%230B0B0F'/><circle cx='16' cy='16' r='6' fill='%236E56F8'/></svg>">
   <link rel="stylesheet" href="styles.css">
-  <!-- pdf-lib + fontkit (UMD) for in-browser PDF generation (vendored locally) -->
   <script src="lib/pdf-lib.min.js"></script>
   <script src="lib/fontkit.umd.min.js"></script>
 </head>
 <body>
   <header class="appbar">
     <div class="brand">Logo Showcase</div>
-    <nav>
-      <button class="tab active" data-view="make">Make a PDF</button>
-      <button class="tab" data-view="gallery">Browse gallery</button>
-      <button class="tab" data-view="settings">Settings</button>
+    <nav class="tabs">
+      <button class="tab active" data-view="make"><span>Create</span></button>
+      <button class="tab" data-view="gallery"><span>Gallery</span></button>
+      <button class="tab" data-view="settings"><span>Settings</span></button>
     </nav>
-    <div class="source" id="source-badge">Demo logos</div>
+    <div class="source" id="source-badge"><span class="src-dot"></span><span id="source-text">Demo logos</span></div>
   </header>
 
   <div id="connect-banner" class="banner" hidden>
-    You're viewing the <strong>demo logos</strong>.
-    <button class="link" id="banner-connect">Connect your library folder →</button>
+    <span>Showing <strong>demo logos</strong> — connect your library folder to use your own.</span>
+    <button class="link" id="banner-connect">Connect folder →</button>
   </div>
 
-  <main class="wrap">
-    <!-- MAKE A PDF -->
-    <section id="view-make" class="view">
-      <h1>Make a client PDF</h1>
-      <p class="lede">Pick a profile, narrow it down, and generate a slice — or a full range sheet.</p>
-      <div class="card">
-        <label class="field"><span>Profile</span>
-          <select id="make-profile"></select>
-        </label>
-        <div class="grid2">
-          <div class="field"><span>Industries</span><div id="make-industries" class="checks"></div></div>
-          <div class="field"><span>Types</span><div id="make-types" class="checks"></div></div>
+  <main>
+    <!-- CREATE -->
+    <section id="view-make" class="view container">
+      <div class="page-head">
+        <h1>Create a presentation</h1>
+        <p class="lede">Pick a studio, personalise it for the client, and preview a polished PDF in seconds.</p>
+      </div>
+
+      <div class="panel">
+        <div class="panel-row">
+          <label class="field grow"><span class="lbl">Studio</span>
+            <div class="select-wrap"><select id="make-profile"></select></div>
+          </label>
+          <div class="swatches" id="make-swatches" aria-hidden="true"></div>
         </div>
-        <div class="grid3">
-          <label class="field"><span>Match</span>
-            <select id="make-match">
-              <option value="any">Any selected (broad)</option>
-              <option value="all">All selected (narrow)</option>
-            </select>
+
+        <div class="panel-row">
+          <label class="field grow"><span class="lbl">Client name <em>(optional)</em></span>
+            <input type="text" id="make-client" placeholder="e.g. Acme Coffee Roasters" autocomplete="off">
           </label>
-          <label class="field"><span>Output</span>
-            <select id="make-mode">
-              <option value="slice">Slice — client deliverable</option>
-              <option value="range">Range sheet — show breadth</option>
-            </select>
-          </label>
-          <label class="field" id="make-count-field"><span>Max logos</span>
-            <input type="number" id="make-count" value="12" min="1" max="60">
+          <label class="field"><span class="lbl">Date</span>
+            <input type="text" id="make-date" placeholder="June 2026" autocomplete="off">
           </label>
         </div>
-        <button class="btn primary" id="make-generate">Generate PDF</button>
+      </div>
+
+      <div class="panel">
+        <div class="filter-block">
+          <div class="filter-head"><span class="lbl">Industries</span><button class="mini" data-clear="industry">clear</button></div>
+          <div id="make-industries" class="pills"></div>
+        </div>
+        <div class="filter-block">
+          <div class="filter-head"><span class="lbl">Types</span><button class="mini" data-clear="type">clear</button></div>
+          <div id="make-types" class="pills"></div>
+        </div>
+        <div class="filter-block">
+          <div class="filter-head"><span class="lbl">Match</span></div>
+          <div class="segmented" id="make-match">
+            <button class="seg active" data-val="any">Any</button>
+            <button class="seg" data-val="all">All</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-row">
+          <div class="field grow"><span class="lbl">Output</span>
+            <div class="segmented wide" id="make-mode">
+              <button class="seg active" data-val="slice">Slice <em>· client deliverable</em></button>
+              <button class="seg" data-val="range">Range sheet <em>· show breadth</em></button>
+            </div>
+          </div>
+        </div>
+        <div class="panel-row" id="make-count-row">
+          <label class="field grow"><span class="lbl">Max logos <b id="count-val">12</b></span>
+            <input type="range" id="make-count" min="4" max="40" value="12">
+          </label>
+        </div>
+      </div>
+
+      <div class="actions">
+        <button class="cta" id="make-generate">
+          <span class="cta-label">Generate preview</span>
+          <span class="cta-spin" hidden></span>
+        </button>
         <span id="make-status" class="status"></span>
-        <p class="hint">Tip: leave filters empty to include the whole profile.</p>
+      </div>
+
+      <div id="recent-wrap" class="recent" hidden>
+        <div class="lbl">Recent</div>
+        <div id="recent-list" class="recent-list"></div>
       </div>
     </section>
 
     <!-- GALLERY -->
     <section id="view-gallery" class="view" hidden>
-      <div class="gallery-head">
-        <h1>Browse gallery</h1>
-        <label class="field inline"><span>Profile</span><select id="gal-profile"></select></label>
-        <input id="gal-search" type="search" placeholder="Search by name…">
+      <div class="gallery-head container">
+        <div>
+          <h1>Browse gallery</h1>
+          <p class="lede">Hand-pick marks, then preview them as a slice.</p>
+        </div>
+        <div class="gallery-head-right">
+          <div class="select-wrap small"><select id="gal-profile"></select></div>
+          <input id="gal-search" type="search" placeholder="Search by name…">
+        </div>
       </div>
-      <div class="gallery-layout">
+      <div class="gallery-layout container">
         <aside class="filters">
-          <section><h2>Industry</h2><div id="gal-industries" class="chips"></div></section>
-          <section><h2>Type</h2><div id="gal-types" class="chips"></div></section>
-          <section><h2>Match</h2>
-            <div class="chips">
-              <button class="chip mode active" data-mode="any" type="button">Any</button>
-              <button class="chip mode" data-mode="all" type="button">All</button>
-            </div>
-          </section>
-          <button id="gal-clear" class="link" type="button">Clear filters</button>
+          <div class="filter-block"><span class="lbl">Industry</span><div id="gal-industries" class="pills"></div></div>
+          <div class="filter-block"><span class="lbl">Type</span><div id="gal-types" class="pills"></div></div>
+          <div class="filter-block"><span class="lbl">Match</span>
+            <div class="segmented" id="gal-match"><button class="seg active" data-val="any">Any</button><button class="seg" data-val="all">All</button></div>
+          </div>
+          <button id="gal-clear" class="mini">Clear filters</button>
         </aside>
         <div>
           <div id="gal-grid" class="cardgrid"></div>
-          <p id="gal-empty" class="hint" hidden>No logos match these filters.</p>
+          <p id="gal-empty" class="empty" hidden>No logos match these filters.</p>
         </div>
       </div>
       <div id="gal-selbar" class="selbar" hidden>
         <span id="gal-selcount">0 selected</span>
         <div class="selbar-actions">
-          <button id="gal-clearsel" class="ghost" type="button">Clear</button>
-          <button id="gal-makepdf" class="btn primary" type="button">Make PDF from selection</button>
+          <button id="gal-clearsel" class="ghost">Clear</button>
+          <button id="gal-preview" class="cta sm"><span class="cta-label">Preview selection</span><span class="cta-spin" hidden></span></button>
         </div>
       </div>
     </section>
 
     <!-- SETTINGS -->
-    <section id="view-settings" class="view" hidden>
-      <h1>Settings</h1>
-      <div class="card">
+    <section id="view-settings" class="view container" hidden>
+      <div class="page-head"><h1>Settings</h1></div>
+      <div class="panel">
         <h2>Logo library folder</h2>
         <p class="lede" id="settings-source">Using the built-in demo logos.</p>
         <div id="fs-supported" hidden>
-          <p>Connect the local folder where your logo library lives — usually your
-          <strong>Google Drive for Desktop</strong> folder. It's read on your computer;
-          nothing is uploaded. You only do this once.</p>
-          <button class="btn primary" id="connect-folder">Connect library folder</button>
-          <button class="btn" id="disconnect-folder" hidden>Disconnect</button>
+          <p class="muted">Connect the local folder where your logo library lives — usually your
+          <strong>Google Drive for Desktop</strong> folder. It's read on your computer; nothing is uploaded. You only do this once.</p>
+          <div class="actions left">
+            <button class="cta sm" id="connect-folder"><span class="cta-label">Connect library folder</span></button>
+            <button class="ghost dark" id="disconnect-folder" hidden>Disconnect</button>
+          </div>
         </div>
-        <div id="fs-unsupported" class="toast err" hidden>
-          This browser can't open a local folder. Please use <strong>Google Chrome</strong>
-          or <strong>Microsoft Edge</strong> on a computer.
+        <div id="fs-unsupported" class="callout" hidden>
+          This browser can't open a local folder. Please use <strong>Google Chrome</strong> or <strong>Microsoft Edge</strong> on a computer.
         </div>
       </div>
-      <details class="card">
+      <details class="panel">
         <summary>How it works</summary>
-        <ul>
+        <ul class="muted">
           <li>The app is hosted online but reads your library folder <strong>locally, in your browser</strong>.</li>
           <li>Your logos never leave your computer — PDFs are built on-device.</li>
           <li>Admin keeps the shared library in Google Drive; everyone points the app at their synced copy.</li>
@@ -123,6 +162,28 @@
       </details>
     </section>
   </main>
+
+  <!-- PREVIEW MODAL -->
+  <div id="preview" class="modal" hidden>
+    <div class="modal-bg" data-close></div>
+    <div class="modal-card">
+      <header class="modal-head">
+        <div>
+          <div class="modal-title" id="preview-title">Preview</div>
+          <div class="modal-sub" id="preview-sub"></div>
+        </div>
+        <div class="modal-actions">
+          <button class="ghost dark" id="preview-open">Open in tab</button>
+          <button class="cta sm" id="preview-download"><span class="cta-label">Download PDF</span></button>
+          <button class="iconbtn" id="preview-close" data-close aria-label="Close">✕</button>
+        </div>
+      </header>
+      <div class="modal-body">
+        <div class="preview-loading" id="preview-loading"><div class="loader"></div><span>Designing your PDF…</span></div>
+        <iframe id="preview-frame" title="PDF preview" hidden></iframe>
+      </div>
+    </div>
+  </div>
 
   <footer class="foot">Runs in your browser · your logos stay on your computer</footer>
   <script type="module" src="app.js"></script>

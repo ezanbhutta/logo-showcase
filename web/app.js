@@ -1,209 +1,246 @@
-// App controller — views (Make a PDF / Gallery / Settings), data source
-// (local folder via File System Access, or the bundled demo), and download.
-
+// App controller: studios, personalisation, filters, live PDF preview, recents.
 import {
   FsSource, FetchSource, saveHandle, loadHandle, clearHandle,
   verifyPermission, fsAccessSupported,
 } from "./src/source.js";
 import { parseLibrary, activeEntries, matches } from "./src/library.js";
 import { parseTheme } from "./src/theme.js";
-import { curate, describeQuery, typeLabel } from "./src/curate.js";
+import { curate, describeQuery, typeLabel, titleCase } from "./src/curate.js";
 import { renderSlice, renderRange } from "./src/pdf.js";
 
 const $ = (s) => document.querySelector(s);
+const $$ = (s) => [...document.querySelectorAll(s)];
+
 const state = {
   source: new FetchSource("demo"),
   sourceLabel: "Demo logos",
-  profiles: new Map(),       // profile -> { entries, theme }
-  thumbs: new Map(),         // `${profile}/${file}` -> objectURL
+  isDemo: true,
+  profiles: new Map(),   // profile -> {entries, theme}
+  meta: new Map(),       // profile -> theme (light)
+  thumbs: new Map(),
+  blobUrl: null,
 };
 
-// ---- data helpers ----------------------------------------------------------
-
+// ---- data ------------------------------------------------------------------
+async function getMeta(profile) {
+  if (state.meta.has(profile)) return state.meta.get(profile);
+  const t = parseTheme(await state.source.getText(profile, "theme.json"), profile);
+  state.meta.set(profile, t);
+  return t;
+}
 async function loadProfile(profile) {
   if (state.profiles.has(profile)) return state.profiles.get(profile);
   const [csv, themeJson] = await Promise.all([
     state.source.getText(profile, "tags.csv"),
     state.source.getText(profile, "theme.json"),
   ]);
-  const entries = parseLibrary(csv);
-  const theme = parseTheme(themeJson, profile);
-  const data = { entries, theme };
+  const data = { entries: parseLibrary(csv), theme: parseTheme(themeJson, profile) };
   state.profiles.set(profile, data);
   return data;
 }
-
 function unionValues(entries, key) {
   const set = new Set();
   activeEntries(entries).forEach((e) => e[key].forEach((v) => set.add(v)));
   return [...set].sort();
 }
-
 async function thumbUrl(profile, file) {
   const key = `${profile}/${file}`;
   if (state.thumbs.has(key)) return state.thumbs.get(key);
-  const blob = await state.source.getBlob(profile, `logos/${file}`);
-  const url = URL.createObjectURL(blob);
+  const url = URL.createObjectURL(await state.source.getBlob(profile, `logos/${file}`));
   state.thumbs.set(key, url);
   return url;
 }
 
-function downloadPdf(bytes, filename) {
-  const blob = new Blob([bytes], { type: "application/pdf" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url; a.download = filename;
+// ---- generic UI helpers ----------------------------------------------------
+function renderPills(container, values, set, onChange) {
+  container.innerHTML = "";
+  values.forEach((v) => {
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "pill"; b.textContent = v.replace(/-/g, " ");
+    if (set.has(v)) b.classList.add("active");
+    b.addEventListener("click", () => {
+      if (set.has(v)) { set.delete(v); b.classList.remove("active"); }
+      else { set.add(v); b.classList.add("active"); }
+      onChange && onChange();
+    });
+    container.appendChild(b);
+  });
+}
+function wireSegmented(el, onPick) {
+  el.querySelectorAll(".seg").forEach((b) =>
+    b.addEventListener("click", () => {
+      el.querySelectorAll(".seg").forEach((x) => x.classList.remove("active"));
+      b.classList.add("active");
+      onPick(b.dataset.val);
+    }));
+}
+function downloadBlobUrl(url, filename) {
+  const a = document.createElement("a"); a.href = url; a.download = filename;
   document.body.appendChild(a); a.click(); a.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 4000);
 }
 
-function autoName(profile, q, mode) {
-  const bits = [profile, mode];
-  if (q.industries.length) bits.push(q.industries.join("-"));
-  if (q.types.length) bits.push(q.types.join("-"));
-  return bits.join("-") + ".pdf";
+// ---- preview modal ---------------------------------------------------------
+function openPreview(bytes, filename, subtitle) {
+  if (state.blobUrl) URL.revokeObjectURL(state.blobUrl);
+  state.blobUrl = URL.createObjectURL(new Blob([bytes], { type: "application/pdf" }));
+  $("#preview-title").textContent = filename;
+  $("#preview-sub").textContent = `${subtitle} · ${Math.round(bytes.length / 1024)} KB`;
+  const frame = $("#preview-frame");
+  $("#preview-loading").hidden = false; frame.hidden = true;
+  frame.onload = () => { $("#preview-loading").hidden = true; frame.hidden = false; };
+  frame.src = state.blobUrl + "#toolbar=1&view=FitH";
+  setTimeout(() => { $("#preview-loading").hidden = true; frame.hidden = false; }, 1500);
+  $("#preview-download").onclick = () => downloadBlobUrl(state.blobUrl, filename);
+  $("#preview-open").onclick = () => window.open(state.blobUrl, "_blank");
+  $("#preview").hidden = false;
+  $("#preview").dataset.filename = filename;
+}
+function closePreview() {
+  $("#preview").hidden = true;
+  $("#preview-frame").src = "about:blank";
 }
 
 // ---- source switching ------------------------------------------------------
-
 async function useDemo() {
-  state.source = new FetchSource("demo");
-  state.sourceLabel = "Demo logos";
-  await onSourceChanged(true);
+  state.source = new FetchSource("demo"); state.sourceLabel = "Demo logos"; state.isDemo = true;
+  await onSourceChanged();
 }
-
 async function useFolder(handle) {
-  state.source = new FsSource(handle);
-  state.sourceLabel = handle.name || "Local folder";
-  await onSourceChanged(false);
+  state.source = new FsSource(handle); state.sourceLabel = handle.name || "Local folder"; state.isDemo = false;
+  await onSourceChanged();
 }
-
-async function onSourceChanged(isDemo) {
-  state.profiles.clear();
-  state.thumbs.forEach((u) => URL.revokeObjectURL(u));
-  state.thumbs.clear();
-  $("#source-badge").textContent = state.sourceLabel;
-  $("#connect-banner").hidden = !isDemo || !fsAccessSupported();
-  renderSettings(isDemo);
+async function onSourceChanged() {
+  state.profiles.clear(); state.meta.clear();
+  state.thumbs.forEach((u) => URL.revokeObjectURL(u)); state.thumbs.clear();
+  $("#source-text").textContent = state.sourceLabel;
+  $("#source-badge").classList.toggle("live", !state.isDemo);
+  $("#connect-banner").hidden = !state.isDemo || !fsAccessSupported();
+  renderSettings();
   await refreshProfiles();
 }
-
 async function refreshProfiles() {
   let names = [];
-  try { names = await state.source.listProfiles(); }
-  catch (e) { console.error(e); }
+  try { names = await state.source.listProfiles(); } catch (e) { console.error(e); }
+  const opts = [];
+  for (const n of names) { try { opts.push([n, (await getMeta(n)).name]); } catch { opts.push([n, n]); } }
   for (const sel of ["#make-profile", "#gal-profile"]) {
-    const el = $(sel);
-    el.innerHTML = names.map((n) => `<option value="${n}">${n}</option>`).join("");
+    $(sel).innerHTML = opts.map(([v, label]) => `<option value="${v}">${label}</option>`).join("");
   }
-  if (names.length) {
-    await onMakeProfile();
-    await loadGallery();
-  }
+  if (names.length) { await onMakeProfile(); await loadGallery(); }
 }
 
-// ---- view: Make a PDF ------------------------------------------------------
-
-function checkbox(group, value) {
-  const l = document.createElement("label");
-  l.innerHTML = `<input type="checkbox" value="${value}"><span>${value.replace(/-/g, " ")}</span>`;
-  return l;
-}
+// ---- Create view -----------------------------------------------------------
+const mk = { industries: new Set(), types: new Set(), match: "any", mode: "slice" };
 
 async function onMakeProfile() {
   const profile = $("#make-profile").value;
   if (!profile) return;
   setStatus("");
+  mk.industries.clear(); mk.types.clear();
   try {
     const { entries } = await loadProfile(profile);
-    const ind = $("#make-industries"); ind.innerHTML = "";
-    const typ = $("#make-types"); typ.innerHTML = "";
-    unionValues(entries, "industries").forEach((v) => ind.appendChild(checkbox("industry", v)));
-    unionValues(entries, "types").forEach((v) => typ.appendChild(checkbox("type", v)));
-  } catch (e) {
-    setStatus(e.message, "err");
-  }
+    renderPills($("#make-industries"), unionValues(entries, "industries"), mk.industries);
+    renderPills($("#make-types"), unionValues(entries, "types"), mk.types);
+    const t = await getMeta(profile);
+    const sw = $("#make-swatches"); sw.innerHTML = "";
+    [t.palette.cover_bg, t.palette.accent, t.palette.ink, t.palette.paper].forEach((c) => {
+      const s = document.createElement("span"); s.style.background = c; sw.appendChild(s);
+    });
+  } catch (e) { setStatus(e.message, "err"); }
 }
-
-function selectedChecks(container) {
-  return [...container.querySelectorAll("input:checked")].map((i) => i.value);
-}
-
 function setStatus(msg, kind = "") {
-  const el = $("#make-status");
-  el.textContent = msg;
-  el.className = "status" + (kind ? " " + kind : "");
+  const el = $("#make-status"); el.textContent = msg; el.className = "status" + (kind ? " " + kind : "");
 }
-
-function syncCountField() {
-  $("#make-count-field").style.display = $("#make-mode").value === "slice" ? "" : "none";
+function setBusy(btn, busy) {
+  btn.disabled = busy;
+  btn.querySelector(".cta-label").textContent = busy ? "Designing…" : btn.dataset.label;
+  btn.querySelector(".cta-spin").hidden = !busy;
 }
 
 async function onGenerate() {
   const profile = $("#make-profile").value;
-  const mode = $("#make-mode").value;
-  const match = $("#make-match").value;
-  const count = parseInt($("#make-count").value, 10) || 12;
-  const industries = selectedChecks($("#make-industries"));
-  const types = selectedChecks($("#make-types"));
   const btn = $("#make-generate");
-  btn.disabled = true;
-  setStatus("Generating…");
+  setBusy(btn, true); setStatus("");
   try {
     const { entries, theme } = await loadProfile(profile);
-    const q = { industries, types, matchAll: match === "all" };
-    const chosen = curate(entries, q, mode === "slice" ? count : null);
-    if (!chosen.length) throw new Error(`No logos match [${describeQuery(industries, types, q.matchAll)}].`);
-    const bytes = mode === "slice"
-      ? await renderSlice(state.source, profile, theme, chosen, q)
-      : await renderRange(state.source, profile, theme, chosen, q);
-    downloadPdf(bytes, autoName(profile, q, mode));
-    setStatus(`✓ ${chosen.length} logos · ${Math.round(bytes.length / 1024)} KB · downloaded`, "ok");
-  } catch (e) {
-    setStatus(e.message, "err");
-  } finally {
-    btn.disabled = false;
-  }
+    const q = { industries: [...mk.industries], types: [...mk.types], matchAll: mk.match === "all" };
+    const count = parseInt($("#make-count").value, 10) || 12;
+    const chosen = curate(entries, q, mk.mode === "slice" ? count : null);
+    if (!chosen.length) throw new Error(`No logos match [${describeQuery(q.industries, q.types, q.matchAll)}].`);
+    const opts = { clientName: $("#make-client").value.trim(), dateStr: $("#make-date").value.trim() };
+    const bytes = mk.mode === "slice"
+      ? await renderSlice(state.source, profile, theme, chosen, q, opts)
+      : await renderRange(state.source, profile, theme, chosen, q, opts);
+    const fname = `${profile}-${mk.mode}${opts.clientName ? "-" + slug(opts.clientName) : ""}.pdf`;
+    openPreview(bytes, fname, `${theme.name} · ${chosen.length} marks`);
+    pushRecent({ profile, name: theme.name, mode: mk.mode, client: opts.clientName,
+      industries: q.industries, types: q.types, match: mk.match, count });
+    setStatus("✓ Preview ready", "ok");
+  } catch (e) { setStatus(e.message, "err"); }
+  finally { setBusy(btn, false); }
 }
+function slug(s) { return s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, ""); }
 
-// ---- view: Gallery ---------------------------------------------------------
-
-const gal = { entries: [], theme: null, profile: "", industries: new Set(), types: new Set(), match: "any", search: "", selected: new Set() };
-
-function chip(label, container, set) {
-  const b = document.createElement("button");
-  b.type = "button"; b.className = "chip"; b.textContent = label.replace(/-/g, " ");
-  b.addEventListener("click", () => {
-    if (set.has(label)) { set.delete(label); b.classList.remove("active"); }
-    else { set.add(label); b.classList.add("active"); }
-    renderGallery();
+// ---- Recent ----------------------------------------------------------------
+function loadRecents() { try { return JSON.parse(localStorage.getItem("ls-recents") || "[]"); } catch { return []; } }
+function pushRecent(r) {
+  let list = loadRecents().filter((x) => JSON.stringify({ ...x, ts: 0 }) !== JSON.stringify({ ...r, ts: 0 }));
+  list.unshift({ ...r, ts: Date.now() });
+  list = list.slice(0, 6);
+  localStorage.setItem("ls-recents", JSON.stringify(list));
+  renderRecents();
+}
+function renderRecents() {
+  const list = loadRecents();
+  $("#recent-wrap").hidden = list.length === 0;
+  const wrap = $("#recent-list"); wrap.innerHTML = "";
+  list.forEach((r) => {
+    const b = document.createElement("button");
+    b.className = "chip-recent";
+    const scope = [...(r.industries || []), ...(r.types || [])].slice(0, 2).join(", ") || "all";
+    b.innerHTML = `<b>${r.name}</b> · ${r.mode}${r.client ? " · " + r.client : ""} · ${scope}`;
+    b.addEventListener("click", () => applyRecent(r));
+    wrap.appendChild(b);
   });
-  container.appendChild(b);
 }
+async function applyRecent(r) {
+  $("#make-profile").value = r.profile;
+  await onMakeProfile();
+  $("#make-client").value = r.client || "";
+  (r.industries || []).forEach((v) => togglePill($("#make-industries"), v, mk.industries, true));
+  (r.types || []).forEach((v) => togglePill($("#make-types"), v, mk.types, true));
+  setSegmented($("#make-match"), r.match || "any"); mk.match = r.match || "any";
+  setSegmented($("#make-mode"), r.mode || "slice"); mk.mode = r.mode || "slice"; syncMode();
+  if (r.count) { $("#make-count").value = r.count; $("#count-val").textContent = r.count; }
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+function togglePill(container, value, set, on) {
+  const btn = [...container.querySelectorAll(".pill")].find((b) => b.textContent === value.replace(/-/g, " "));
+  if (btn) { btn.classList.toggle("active", on); if (on) set.add(value); else set.delete(value); }
+}
+function setSegmented(el, val) {
+  el.querySelectorAll(".seg").forEach((b) => b.classList.toggle("active", b.dataset.val === val));
+}
+function syncMode() { $("#make-count-row").style.display = mk.mode === "slice" ? "" : "none"; }
+
+// ---- Gallery ---------------------------------------------------------------
+const gal = { entries: [], theme: null, profile: "", industries: new Set(), types: new Set(), match: "any", search: "", selected: new Set() };
 
 async function loadGallery() {
   const profile = $("#gal-profile").value;
   if (!profile) return;
-  gal.profile = profile;
-  gal.industries.clear(); gal.types.clear(); gal.selected.clear(); gal.search = "";
+  gal.profile = profile; gal.industries.clear(); gal.types.clear(); gal.selected.clear(); gal.search = "";
   $("#gal-search").value = "";
   const { entries, theme } = await loadProfile(profile);
-  gal.entries = activeEntries(entries);
-  gal.theme = theme;
-  const ind = $("#gal-industries"); ind.innerHTML = "";
-  const typ = $("#gal-types"); typ.innerHTML = "";
-  unionValues(entries, "industries").forEach((v) => chip(v, ind, gal.industries));
-  unionValues(entries, "types").forEach((v) => chip(v, typ, gal.types));
+  gal.entries = activeEntries(entries); gal.theme = theme;
+  renderPills($("#gal-industries"), unionValues(entries, "industries"), gal.industries, renderGallery);
+  renderPills($("#gal-types"), unionValues(entries, "types"), gal.types, renderGallery);
   await renderGallery();
 }
-
 function galMatches(e) {
-  const ok = matches(e, [...gal.industries], [...gal.types], gal.match === "all");
-  if (!ok) return false;
-  if (gal.search) return e.name.toLowerCase().includes(gal.search.toLowerCase());
-  return true;
+  if (!matches(e, [...gal.industries], [...gal.types], gal.match === "all")) return false;
+  return !gal.search || e.name.toLowerCase().includes(gal.search.toLowerCase());
 }
-
 async function renderGallery() {
   const grid = $("#gal-grid");
   const visible = gal.entries.filter(galMatches);
@@ -212,12 +249,10 @@ async function renderGallery() {
     const el = document.createElement("div");
     el.className = "lcard" + (gal.selected.has(e.file) ? " sel" : "");
     el.innerHTML = `<div class="thumb"><img alt="${e.name}"></div>
-      <div class="cap"><span class="tier">T${e.tier}</span>
-      <div class="nm">${e.name}</div><div class="mt">${typeLabel(e.types)}</div></div>`;
+      <div class="cap"><span class="tier">T${e.tier}</span><span class="nm">${e.name}</span><span class="mt">${typeLabel(e.types)}</span></div>`;
     el.querySelector("img").src = await thumbUrl(gal.profile, e.file);
     el.addEventListener("click", () => {
-      if (gal.selected.has(e.file)) gal.selected.delete(e.file);
-      else gal.selected.add(e.file);
+      if (gal.selected.has(e.file)) gal.selected.delete(e.file); else gal.selected.add(e.file);
       renderGallery();
     });
     grid.appendChild(el);
@@ -227,101 +262,95 @@ async function renderGallery() {
   $("#gal-selbar").hidden = n === 0;
   $("#gal-selcount").textContent = `${n} selected`;
 }
-
-async function galMakePdf() {
-  const files = [...gal.selected];
-  if (!files.length) return;
+async function galPreview() {
+  const files = [...gal.selected]; if (!files.length) return;
   const byFile = new Map(gal.entries.map((e) => [e.file, e]));
-  let chosen = files.map((f) => byFile.get(f)).filter(Boolean);
-  chosen.sort((a, b) => a.tier - b.tier || (b.year ?? -1) - (a.year ?? -1));
-  const q = { industries: [], types: [], matchAll: false };
-  const btn = $("#gal-makepdf"); btn.disabled = true; btn.textContent = "Generating…";
+  const chosen = files.map((f) => byFile.get(f)).filter(Boolean)
+    .sort((a, b) => a.tier - b.tier || (b.year ?? -1) - (a.year ?? -1));
+  const btn = $("#gal-preview"); setBusy(btn, true);
   try {
-    const bytes = await renderSlice(state.source, gal.profile, gal.theme, chosen, q);
-    downloadPdf(bytes, `${gal.profile}-selection.pdf`);
-  } catch (e) { alert(e.message); }
-  finally { btn.disabled = false; btn.textContent = "Make PDF from selection"; }
+    const q = { industries: [], types: [], matchAll: false };
+    const bytes = await renderSlice(state.source, gal.profile, gal.theme, chosen, q, { dateStr: defaultDate() });
+    openPreview(bytes, `${gal.profile}-selection.pdf`, `${gal.theme.name} · ${chosen.length} marks`);
+  } catch (e) { setStatus(e.message, "err"); alert(e.message); }
+  finally { setBusy(btn, false); }
 }
 
-// ---- view: Settings --------------------------------------------------------
-
-function renderSettings(isDemo) {
+// ---- Settings --------------------------------------------------------------
+function renderSettings() {
   $("#fs-supported").hidden = !fsAccessSupported();
   $("#fs-unsupported").hidden = fsAccessSupported();
-  $("#settings-source").textContent = isDemo
-    ? "Using the built-in demo logos."
-    : `Connected to: ${state.sourceLabel}`;
-  $("#disconnect-folder").hidden = isDemo;
+  $("#settings-source").textContent = state.isDemo ? "Using the built-in demo logos." : `Connected to: ${state.sourceLabel}`;
+  $("#disconnect-folder").hidden = state.isDemo;
 }
-
 async function connectFolder() {
   try {
     const handle = await window.showDirectoryPicker({ mode: "read" });
     if (!(await verifyPermission(handle))) return;
-    await saveHandle(handle);
-    await useFolder(handle);
-    switchView("make");
-  } catch (e) {
-    if (e.name !== "AbortError") alert("Couldn't open that folder: " + e.message);
-  }
+    await saveHandle(handle); await useFolder(handle); switchView("make");
+  } catch (e) { if (e.name !== "AbortError") alert("Couldn't open that folder: " + e.message); }
 }
+async function disconnectFolder() { await clearHandle(); await useDemo(); }
 
-async function disconnectFolder() {
-  await clearHandle();
-  await useDemo();
-}
-
-// ---- view switching + wiring ----------------------------------------------
-
+// ---- view switching --------------------------------------------------------
 function switchView(view) {
-  document.querySelectorAll(".tab").forEach((t) => t.classList.toggle("active", t.dataset.view === view));
-  document.querySelectorAll(".view").forEach((v) => { v.hidden = v.id !== `view-${view}`; });
+  $$(".tab").forEach((t) => t.classList.toggle("active", t.dataset.view === view));
+  $$(".view").forEach((v) => { v.hidden = v.id !== `view-${view}`; });
   if (view === "gallery") loadGallery();
+}
+function defaultDate() {
+  const d = new Date();
+  return d.toLocaleString("en-US", { month: "long", year: "numeric" });
 }
 
 function wire() {
-  document.querySelectorAll(".tab").forEach((t) =>
-    t.addEventListener("click", () => switchView(t.dataset.view)));
-
+  $$(".tab").forEach((t) => t.addEventListener("click", () => switchView(t.dataset.view)));
   $("#make-profile").addEventListener("change", onMakeProfile);
-  $("#make-mode").addEventListener("change", syncCountField);
-  $("#make-generate").addEventListener("click", onGenerate);
+  wireSegmented($("#make-match"), (v) => (mk.match = v));
+  wireSegmented($("#make-mode"), (v) => { mk.mode = v; syncMode(); });
+  $("#make-count").addEventListener("input", (e) => $("#count-val").textContent = e.target.value);
+  $$("[data-clear]").forEach((b) => b.addEventListener("click", () => {
+    const which = b.dataset.clear;
+    const set = which === "industry" ? mk.industries : mk.types;
+    set.clear();
+    (which === "industry" ? $("#make-industries") : $("#make-types"))
+      .querySelectorAll(".pill").forEach((p) => p.classList.remove("active"));
+  }));
+  const gen = $("#make-generate"); gen.dataset.label = "Generate preview";
+  gen.addEventListener("click", onGenerate);
 
   $("#gal-profile").addEventListener("change", loadGallery);
   $("#gal-search").addEventListener("input", (e) => { gal.search = e.target.value; renderGallery(); });
-  document.querySelectorAll(".chip.mode").forEach((b) =>
-    b.addEventListener("click", () => {
-      document.querySelectorAll(".chip.mode").forEach((x) => x.classList.remove("active"));
-      b.classList.add("active"); gal.match = b.dataset.mode; renderGallery();
-    }));
+  wireSegmented($("#gal-match"), (v) => { gal.match = v; renderGallery(); });
   $("#gal-clear").addEventListener("click", () => {
     gal.industries.clear(); gal.types.clear(); gal.search = ""; $("#gal-search").value = "";
-    document.querySelectorAll("#gal-industries .chip, #gal-types .chip").forEach((c) => c.classList.remove("active"));
+    $$("#gal-industries .pill, #gal-types .pill").forEach((p) => p.classList.remove("active"));
     renderGallery();
   });
   $("#gal-clearsel").addEventListener("click", () => { gal.selected.clear(); renderGallery(); });
-  $("#gal-makepdf").addEventListener("click", galMakePdf);
+  const gp = $("#gal-preview"); gp.dataset.label = "Preview selection";
+  gp.addEventListener("click", galPreview);
 
   $("#connect-folder").addEventListener("click", connectFolder);
   $("#banner-connect").addEventListener("click", connectFolder);
   $("#disconnect-folder").addEventListener("click", disconnectFolder);
 
-  syncCountField();
+  $$("[data-close]").forEach((b) => b.addEventListener("click", closePreview));
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !$("#preview").hidden) closePreview(); });
+
+  $("#make-date").value = defaultDate();
+  syncMode();
+  renderRecents();
 }
 
 async function init() {
   wire();
-  // Try a previously-connected folder.
   if (fsAccessSupported()) {
     try {
       const handle = await loadHandle();
-      if (handle && (await handle.queryPermission({ mode: "read" })) === "granted") {
-        await useFolder(handle);
-        return;
-      }
-    } catch (e) { /* fall back to demo */ }
+      if (handle && (await handle.queryPermission({ mode: "read" })) === "granted") { await useFolder(handle); return; }
+    } catch (e) { /* demo */ }
   }
   await useDemo();
 }
-
 init();

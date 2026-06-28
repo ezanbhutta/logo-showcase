@@ -1,6 +1,6 @@
 {
   "id": "eikon",
-  "name": "Eikon Studio",
+  "name": "Eikon Design",
   "sort_primary": "type",
   "palette": {
     "ink": "#101114",
@@ -11,7 +11,19 @@
     "cover_bg": "#101114",
     "cover_fg": "#F4F2FF"
   },
-  "fonts": { "display": "Spectral", "body": "Archivo", "serif": "Spectral" },
-  "layout": { "cover_style": "dark", "tile_cols": 4, "tile_radius_mm": 6, "density": "compact" },
-  "labels": { "slice_kicker": "Selected marks", "range_title": "Studio range" }
+  "fonts": {
+    "display": "Fraunces",
+    "body": "DMSans",
+    "serif": "Spectral"
+  },
+  "layout": {
+    "cover_style": "editorial",
+    "tile_cols": 4,
+    "tile_radius_mm": 6,
+    "density": "compact"
+  },
+  "labels": {
+    "slice_kicker": "Selected marks",
+    "range_title": "Studio range"
+  }
 }

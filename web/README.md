@@ -4,6 +4,22 @@ A static web app, hosted on **Vercel**, that reads your logo library from a
 **local folder on each teammate's computer** and builds client PDFs **entirely
 in the browser**. Nothing is uploaded — the logos never leave the machine.
 
+## Features
+
+- **10 distinct studios** — XStudioz, Storm, Dygram, Carpicon, WeDesign, BIC,
+  Abdul Haseeb, Alee Studioz, Eikon, Grid — each with its own palette, font
+  pairing, layout and **cover style**, so no two decks read as related.
+- **Live preview** — generate and view the PDF in-app before downloading.
+- **Client personalisation** — add a client name and date; the cover prints
+  *"Prepared for …"* like an agency deliverable.
+- **Agency-grade PDFs** — themed cover + numbered logo grid + running footers +
+  a closing page, with embedded fonts (Archivo, Spectral, Space Grotesk, Sora,
+  Syne, DM Sans, Fraunces).
+- **Gallery** — browse, filter, search and multi-select marks, then preview a
+  bespoke slice.
+- **Recents** — your last few presentations, one click to rebuild.
+- Slice (client deliverable) and Range sheet (breadth) modes; count slider.
+
 ## How it can be "hosted online but read a local folder"
 
 A web server (Vercel) **cannot** reach files on someone's PC. What *can* is the
