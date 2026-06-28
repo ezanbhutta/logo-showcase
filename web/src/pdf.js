@@ -320,33 +320,42 @@ export async function renderSlice(src, profile, theme, entries, query, opts = {}
 export async function renderRange(src, profile, theme, entries, query, opts = {}) {
   const pdf = await PDFDocument.create();
   pdf.setTitle(`${theme.name} — range`);
-  const F = await makeFonts(pdf, theme);
-  const pal = theme.palette;
+  pdf.setCreator("Logo Showcase · HaseebMadeIt");
+  const T = { ...theme, layout: { ...theme.layout,
+    tile_cols: opts.columns || theme.layout.tile_cols,
+    density: opts.density || theme.layout.density,
+    cover_style: opts.coverStyle || theme.layout.cover_style } };
+  const F = await makeFonts(pdf, T);
+  const pal = T.palette;
   const tiles = await embedPreviews(pdf, src, profile, entries, pal.paper);
   const subtitle = titleCase(describeQuery(query.industries, query.types, query.matchAll));
-  const title = theme.labels.range_title || "Full range";
+  const title = T.labels.range_title || "Full range";
   const n = entries.length;
+  const ctx = { subtitle, n, clientName: opts.clientName || "", dateStr: opts.dateStr || "" };
+  const includeCover = opts.includeCover !== false;
+  const includeClosing = opts.includeClosing !== false;
 
-  const cols = Math.max(4, Math.min(theme.layout.tile_cols + 2, 6));
-  const gm = 14, gap = 5;
+  if (includeCover) drawCover(pdf.addPage([PAGE_W, PAGE_H]), T, F, ctx);
+
+  const cols = opts.columns || Math.max(4, Math.min(T.layout.tile_cols + 2, 6));
+  const gap = T.layout.density === "compact" ? 4 : T.layout.density === "comfortable" ? 6 : 5;
+  const gm = 14;
   const contentW = 210 - 2 * gm;
   const tileW = (contentW - gap * (cols - 1)) / cols;
   const imgH = tileW, capH = 9, tileH = imgH + capH;
+  const nameFont = T.fonts.display === "Fraunces" ? F("body", "semibold") : F("display", "semibold");
+  const headFont = T.fonts.display === "Fraunces" ? F("body", "bold") : F("display", "bold");
 
-  let page = pdf.addPage([PAGE_W, PAGE_H]); page._F = F;
-  text(page, gm, 20, theme.name, F("display", "bold"), 22, hex(pal.ink));
+  const pages = [];
+  let page = pdf.addPage([PAGE_W, PAGE_H]); page._F = F; pages.push(page);
+  text(page, gm, 20, T.name, headFont, 22, hex(pal.ink));
   rect(page, gm, 24, 24, 1, { fill: hex(pal.accent) });
   text(page, gm, 30, `${title} · ${subtitle} · ${n} marks`, F("body", "regular"), 9.5, hex(pal.muted));
-  const smallSerif = theme.fonts.serif === "Fraunces" ? F("body", "regular") : F("serif", "regular");
-  if (opts.clientName) text(page, 210 - gm, 20, `For ${opts.clientName}`, smallSerif, 11, hex(pal.muted), { align: "right" });
-  const pages = [page];
   const runHeader = (pg) => {
-    text(pg, gm, 12, theme.name, F("display", "bold"), 9, hex(pal.ink));
+    text(pg, gm, 12, T.name, headFont, 9, hex(pal.ink));
     text(pg, 210 - gm, 12, title.toUpperCase(), F("body", "regular"), 8, hex(pal.accent), { align: "right", tracking: 1.4 });
     hline(pg, gm, 210 - gm, 15, hex(pal.accent_soft), 0.4);
   };
-
-  const nameFont = theme.fonts.display === "Fraunces" ? F("body", "semibold") : F("display", "semibold");
   let top = 38, col = 0, rowY = top;
   for (const { entry, img } of tiles) {
     if (rowY + tileH > 283) { page = pdf.addPage([PAGE_W, PAGE_H]); page._F = F; pages.push(page); runHeader(page); top = 22; rowY = top; col = 0; }
@@ -358,7 +367,10 @@ export async function renderRange(src, profile, theme, entries, query, opts = {}
     text(page, x, rowY + imgH + 6.6, typeLabel(entry.types).toUpperCase(), F("body", "regular"), 5.4, hex(pal.muted), { tracking: 0.4 });
     if (++col >= cols) { col = 0; rowY += tileH + gap + 2; }
   }
+  if (includeClosing) drawClosing(pdf.addPage([PAGE_W, PAGE_H]), T, F, ctx);
+
   const total = pdf.getPageCount();
-  pages.forEach((pg, i) => text(pg, 105, 290, `${i + 1} / ${total}`, F("body", "regular"), 8, hex(pal.muted), { align: "center" }));
+  const startNo = includeCover ? 2 : 1;
+  pages.forEach((pg, i) => text(pg, 105, 290, `${startNo + i} / ${total}`, F("body", "regular"), 8, hex(pal.muted), { align: "center" }));
   return pdf.save();
 }
