@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 160">
+<rect width="320" height="160" fill="none"/>
+<circle cx="70" cy="80" r="42" fill="none" stroke="#0E7C66" stroke-width="10"/>
+<path d="M48 80 L64 96 L96 56" fill="none" stroke="#0E7C66" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="130" y="92" font-family="Georgia, serif" font-size="38" fill="#16352E">Verda</text>
+</svg>

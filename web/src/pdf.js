@@ -228,26 +228,25 @@ function drawClosing(page, theme, F, ctx) {
 
 function drawGrid(pdf, theme, F, tiles, subtitle, ctx) {
   const pal = theme.palette;
-  // 6 tiles per page by default (3 × 2), large and evenly distributed so a
-  // short collection still fills the page like a deck, not a few small tiles.
-  const cols = theme.layout.tile_cols || 3;
-  const rowsPerPage = Math.max(1, Math.round(6 / cols));   // cols 3→2, 2→3, 4→2
-  const perPage = cols * rowsPerPage;
-  const gm = 16, top = 36, bottom = 16;
-  const gap = theme.layout.density === "comfortable" ? 9 : 6;
+  // Always 2 columns × 3 rows — six big tiles per page filling the sheet within
+  // a clean print margin. Logos sit large inside each frame.
+  const cols = 2, rowsPerPage = 3, perPage = 6;
+  const gm = 13, top = 26, bottom = 13;                       // page margins / bleed
+  const gapX = theme.layout.density === "comfortable" ? 11 : 8;
+  const gapY = theme.layout.density === "comfortable" ? 9 : 6;
+  const capH = 13;                                            // caption band under each frame
   const contentW = 210 - 2 * gm;
-  const tileW = (contentW - gap * (cols - 1)) / cols;
-  const capH = 14;
-  const imgH = Math.min(tileW * 0.82, ((297 - bottom - top) - capH * rowsPerPage) / rowsPerPage - 6);
-  const tileH = imgH + capH;
-  const usableH = 297 - bottom - top;
-  const vgap = Math.max(8, (usableH - rowsPerPage * tileH) / (rowsPerPage + 1));   // even vertical breathing
+  const tileW = (contentW - gapX * (cols - 1)) / cols;
+  const usableH = 297 - top - bottom;
+  const tileH = (usableH - gapY * (rowsPerPage - 1)) / rowsPerPage;
+  const imgH = tileH - capH;                                  // frame fills the rest of the row
+  const pad = tileW * 0.07;                                   // tight padding → big marks
   const nameFont = theme.fonts.display === "Fraunces" ? F("body", "semibold") : F("display", "semibold");
   const headerFont = theme.fonts.display === "Fraunces" ? F("body", "bold") : F("display", "bold");
   const header = (pg) => {
-    text(pg, gm, top - 12, theme.name, headerFont, 14, hex(pal.ink));
-    text(pg, 210 - gm, top - 12, `${subtitle} · ${ctx.n} marks`, F("body", "regular"), 9, hex(pal.muted), { align: "right" });
-    hline(pg, gm, 210 - gm, top - 7, hex(pal.accent), 0.8);
+    text(pg, gm, top - 11, theme.name, headerFont, 13, hex(pal.ink));
+    text(pg, 210 - gm, top - 11, `${subtitle} · ${ctx.n} marks`, F("body", "regular"), 9, hex(pal.muted), { align: "right" });
+    hline(pg, gm, 210 - gm, top - 6, hex(pal.accent), 0.8);
   };
   const pages = [];
   let page = null;
@@ -255,15 +254,15 @@ function drawGrid(pdf, theme, F, tiles, subtitle, ctx) {
     const slot = i % perPage;
     if (slot === 0) { page = pdf.addPage([PAGE_W, PAGE_H]); page._F = F; pages.push(page); header(page); }
     const r = Math.floor(slot / cols), c = slot % cols;
-    const x = gm + c * (tileW + gap);
-    const rowY = top + vgap + r * (tileH + vgap);
-    rect(page, x, rowY, tileW, imgH, { fill: hex(pal.paper), stroke: hex(pal.accent_soft), line: 0.6 });
-    const f = fit(img, tileW, imgH, tileW * 0.13);
-    page.drawImage(img, { x: (x + tileW / 2) * MM - (f.w * MM) / 2, y: yT(rowY + imgH / 2) - (f.h * MM) / 2, width: f.w * MM, height: f.h * MM });
-    text(page, x, rowY + imgH + 6, String(i + 1).padStart(2, "0"), F("body", "semibold"), 7.5, hex(pal.accent), { tracking: 0.5 });
-    text(page, x + 8.5, rowY + imgH + 6, clip(entry.name, nameFont, 11, tileW - 8.5), nameFont, 11, hex(pal.ink));
+    const x = gm + c * (tileW + gapX);
+    const y = top + r * (tileH + gapY);
+    rect(page, x, y, tileW, imgH, { fill: hex(pal.paper), stroke: hex(pal.accent_soft), line: 0.6 });
+    const f = fit(img, tileW, imgH, pad);
+    page.drawImage(img, { x: (x + tileW / 2) * MM - (f.w * MM) / 2, y: yT(y + imgH / 2) - (f.h * MM) / 2, width: f.w * MM, height: f.h * MM });
+    text(page, x, y + imgH + 7, String(i + 1).padStart(2, "0"), F("body", "semibold"), 8, hex(pal.accent), { tracking: 0.5 });
+    text(page, x + 9, y + imgH + 7, clip(entry.name, nameFont, 12, tileW - 9), nameFont, 12, hex(pal.ink));
     if (entry.types && entry.types.length)
-      text(page, x + 8.5, rowY + imgH + 10.4, typeLabel(entry.types).toUpperCase(), F("body", "regular"), 6.8, hex(pal.muted), { tracking: 0.8 });
+      text(page, x + 9, y + imgH + 11.4, typeLabel(entry.types).toUpperCase(), F("body", "regular"), 7, hex(pal.muted), { tracking: 0.8 });
   });
   return pages;
 }

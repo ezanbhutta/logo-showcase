@@ -9,12 +9,15 @@ import { FsPortfolio, DemoPortfolio, TYPES } from "./src/portfolio.js";
 import { THEMES } from "./src/themes.js";
 import { renderSlice, renderRange, renderByType } from "./src/pdf.js";
 import { INDUSTRIES, TYPES as LOGO_TYPES } from "./src/vocab.js";
+import { thumbUrl } from "./src/images.js";
 
 const $ = (s) => document.querySelector(s);
 const $$ = (s) => [...document.querySelectorAll(s)];
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) =>
   ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-const IMG_KINDS = new Set(["image"]);
+// Kinds that can be rasterised into the deck: raster images, vector SVG (kind
+// "image"), and single-page PDF logos. Only video is left out.
+const IMG_KINDS = new Set(["image", "pdf"]);
 
 const state = {
   source: new DemoPortfolio(), isDemo: true, srcGen: 0,
@@ -26,7 +29,7 @@ const state = {
   live: { bytes: null, url: null, running: false, pending: false, wantId: 0 },
   modalUrl: null,
 };
-const mk = { mode: "slice", layout: "grid", columns: "", density: "", cover: true, closing: true, perType: "" };
+const mk = { mode: "slice", layout: "grid", columns: "", density: "", cover: true, closing: false, perType: "" };
 const filters = { industry: "", type: "" };
 
 // ====== blobs ===============================================================
@@ -56,6 +59,11 @@ function toast(msg, kind = "ok") {
 async function onSourceChanged() {
   state.srcGen++; state.assetsCache.clear(); clearBlobs();
   browseInit = false; browseOpen.clear();
+  // A stale filter must never hide a freshly linked folder's logos.
+  filters.industry = ""; filters.type = "";
+  const fi = $("#filter-industry"); if (fi) fi.value = "";
+  const ft = $("#filter-type"); if (ft) ft.value = "";
+  const ls = $("#logos-search"); if (ls) ls.value = "";
   const prof = state.source.profile();
   state.profileId = prof.id; state.theme = prof.theme || THEMES.eikon;
   state.profileName = state.theme.name || prof.id;
@@ -128,27 +136,39 @@ function pickedOrAll() {
 }
 async function renderPicker() {
   const box = $("#logos-picker"); const q = ($("#logos-search").value || "").toLowerCase();
-  const imgs = imageLogos().filter((a) => !q || a.brand.toLowerCase().includes(q));
+  const renderable = state.logos.filter((a) => IMG_KINDS.has(a.kind));
+  const matched = imageLogos();
+  const imgs = matched.filter((a) => !q || a.brand.toLowerCase().includes(q));
   box.innerHTML = "";
   const empty = $("#logos-empty");
-  const vector = state.logos.filter((a) => !IMG_KINDS.has(a.kind)).length;
-  if (!imageLogos().length) {
+  const filterActive = !!(filters.industry || filters.type);
+  if (!matched.length) {
     empty.hidden = false;
-    empty.innerHTML = state.logos.length
-      ? `The Logos folder has ${state.logos.length} file(s) but none are PNG/JPG, so the deck can't render them yet.`
-      : `No <code>Logos</code> folder found in this portfolio.`;
+    if (!state.logos.length) empty.innerHTML = `No <code>Logos</code> folder found in this portfolio.`;
+    else if (!renderable.length) empty.innerHTML = `The Logos folder has ${state.logos.length} file(s) but none can be rendered — use PNG, JPG, SVG or PDF.`;
+    else if (filterActive) empty.innerHTML = `None of the ${renderable.length} logos match this filter. <button class="link" id="logos-clearfilter">Clear filters</button>`;
+    else empty.innerHTML = `No logos to show.`;
+    const cf = $("#logos-clearfilter");
+    if (cf) cf.addEventListener("click", () => { filters.industry = ""; filters.type = ""; $("#filter-industry").value = ""; $("#filter-type").value = ""; renderPicker(); scheduleRender(120); });
   } else { empty.hidden = true; }
   for (const a of imgs) {
     const order = state.picked.indexOf(a.file);
     const el = document.createElement("div");
     el.className = "pcard" + (order >= 0 ? " sel" : "");
     el.innerHTML = `<div class="pthumb"><img alt="${esc(a.brand)}">${order >= 0 ? `<span class="pnum">${order + 1}</span>` : ""}</div><div class="pname">${esc(a.brand)}</div>`;
-    blobUrl("logos", a.file).then((u) => { const im = el.querySelector("img"); if (im) im.src = u; });
+    const im = el.querySelector("img");
+    logoThumbUrl(a).then((u) => { if (im) im.src = u; }).catch(() => {});
     el.addEventListener("click", () => { togglePick(a.file); });
     box.appendChild(el);
   }
   const n = state.picked.length;
-  $("#logos-pickcount").textContent = (n ? `${n} selected` : `${imageLogos().length} logos`) + (vector ? ` · ${vector} vector (not in deck)` : "");
+  const other = state.logos.length - renderable.length;
+  $("#logos-pickcount").textContent = (n ? `${n} selected` : `${matched.length} logos`) + (other ? ` · ${other} not embeddable` : "");
+}
+// Thumbnail URL for a logo — PDFs are rasterised, everything else shown directly.
+async function logoThumbUrl(a) {
+  if (a.kind === "pdf") return thumbUrl(await state.source.getBlob("logos", a.file), a.file);
+  return blobUrl("logos", a.file);
 }
 function togglePick(file) {
   const i = state.picked.indexOf(file);
@@ -251,16 +271,27 @@ async function renderAssets(typeKey) {
   grid.innerHTML = "";
   $("#assets-empty").hidden = visible.length !== 0;
   $("#assets-empty-t").textContent = assets.length ? "No brands match your search" : `No ${t.label} in this portfolio yet`;
-  for (const a of visible) {
-    const card = document.createElement("div"); card.className = "acard";
-    const badge = a.kind === "pdf" ? "PDF" : a.kind === "video" ? "VIDEO" : a.ext.toUpperCase();
-    card.innerHTML = `<div class="athumb ${a.kind}"><span class="abadge">${badge}</span></div>
-      <div class="acap"><span class="anm">${esc(a.brand)}</span><span class="aview">View ›</span></div>`;
-    const thumb = card.querySelector(".athumb");
-    if (a.kind === "image") { const im = document.createElement("img"); blobUrl(typeKey, a.file).then((u) => im.src = u); thumb.appendChild(im); }
-    card.addEventListener("click", () => openAsset(typeKey, a));
-    grid.appendChild(card);
+  for (const a of visible) grid.appendChild(assetCard(typeKey, a));
+}
+// One deliverable tile — thumbnail (raster/SVG inline, PDF rasterised) + caption.
+function assetCard(typeKey, a) {
+  const card = document.createElement("div"); card.className = "acard";
+  const badge = a.kind === "pdf" ? "PDF" : a.kind === "video" ? "VIDEO" : a.ext.toUpperCase();
+  const sub = a.industryLabel ? esc(a.industryLabel) : (a.descriptor ? esc(a.descriptor) : "");
+  card.innerHTML = `<div class="athumb ${a.kind}"><span class="abadge">${esc(badge)}</span></div>
+    <div class="acap"><span class="anm">${esc(a.brand)}</span>
+      <span class="acap-row"><span class="asub">${sub}</span><span class="aview">View ›</span></span></div>`;
+  const thumb = card.querySelector(".athumb");
+  if (a.kind === "image" || a.kind === "pdf") {
+    const im = document.createElement("img");
+    const p = a.kind === "pdf"
+      ? state.source.getBlob(typeKey, a.file).then((b) => thumbUrl(b, a.file))
+      : blobUrl(typeKey, a.file);
+    Promise.resolve(p).then((u) => { im.src = u; }).catch(() => {});
+    thumb.appendChild(im);
   }
+  card.addEventListener("click", () => openAsset(typeKey, a));
+  return card;
 }
 // ====== Files tree (folder/subfolder browse) ================================
 const browseOpen = new Set();
@@ -273,12 +304,12 @@ async function loadAssets(typeKey) {
 async function renderBrowse() {
   const tree = $("#browse-tree");
   const q = ($("#browse-search").value || "").trim().toLowerCase();
-  if (!browseInit) { state.types.forEach((t) => browseOpen.add(t.key)); browseInit = true; }
   tree.innerHTML = "<div class='muted' style='padding:1rem'>Loading…</div>";
   const data = [];
   for (const t of state.types) {
     const assets = await loadAssets(t.key);
-    const visible = assets.filter((a) => !q || a.brand.toLowerCase().includes(q) || a.file.toLowerCase().includes(q));
+    const visible = assets.filter((a) => !q || a.brand.toLowerCase().includes(q) || a.file.toLowerCase().includes(q)
+      || (a.industryLabel || "").toLowerCase().includes(q));
     data.push({ t, total: assets.length, visible });
   }
   tree.innerHTML = "";
@@ -290,28 +321,22 @@ async function renderBrowse() {
   if (matchFiles === 0) { emptyT.textContent = "No files match your search"; return; }
   for (const { t, total, visible } of data) {
     if (q && !visible.length) continue;                  // hide non-matching folders while searching
-    const open = q ? true : browseOpen.has(t.key);
+    const open = q ? true : browseOpen.has(t.key);       // collapsed by default; search expands matches
     const node = document.createElement("div");
     node.className = "tnode" + (open ? " open" : "");
     const count = q ? `${visible.length} of ${total}` : `${total}`;
     node.innerHTML = `<button class="tfhead" type="button" aria-expanded="${open}">
         <span class="tchev">▸</span><span class="tfico">📁</span>
         <span class="tflabel">${esc(t.label)}</span><span class="tcount">${esc(count)}</span></button>
-      <div class="tfiles"></div>`;
-    const filesBox = node.querySelector(".tfiles");
-    for (const a of visible) {
-      const badge = a.kind === "pdf" ? "PDF" : a.kind === "video" ? "VID" : a.ext.toUpperCase();
-      const row = document.createElement("button");
-      row.className = "trow"; row.type = "button";
-      row.innerHTML = `<span class="tkind ${a.kind}">${esc(badge)}</span><span class="tname">${esc(a.brand)}</span>` +
-        `<span class="tfile">${esc(a.file)}</span><span class="tview">View ›</span>`;
-      row.addEventListener("click", () => openAsset(t.key, a));
-      filesBox.appendChild(row);
-    }
+      <div class="tfiles"><div class="assetgrid tgrid"></div></div>`;
+    const grid = node.querySelector(".tgrid");
+    const fill = () => { if (grid.childElementCount) return; for (const a of visible) grid.appendChild(assetCard(t.key, a)); };
+    if (open) fill();                                     // populate (lazily) only when shown
     if (!q) node.querySelector(".tfhead").addEventListener("click", () => {
       const o = browseOpen.has(t.key);
-      if (o) browseOpen.delete(t.key); else browseOpen.add(t.key);
-      node.classList.toggle("open", !o); node.querySelector(".tfhead").setAttribute("aria-expanded", String(!o));
+      if (o) browseOpen.delete(t.key); else { browseOpen.add(t.key); fill(); }
+      node.classList.toggle("open", !o);
+      node.querySelector(".tfhead").setAttribute("aria-expanded", String(!o));
     });
     tree.appendChild(node);
   }
@@ -351,7 +376,6 @@ function renderSettings() {
   $("#fs-unsupported").hidden = fsAccessSupported();
   $("#settings-source").textContent = state.isDemo ? "Showing the built-in demo portfolio." : `Linked: ${state.profileName}`;
   $("#disconnect-folder").hidden = state.isDemo;
-  $("#known-studios").textContent = Object.values(THEMES).map((t) => t.name).join(" · ");
 }
 async function connectFolder() {
   try {
