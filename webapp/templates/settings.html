@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Settings</h1>
+
+{% if saved %}<div class="toast ok">Saved.</div>{% endif %}
+{% if errors %}{% for e in errors %}<div class="toast err">{{ e }}</div>{% endfor %}{% endif %}
+
+<form class="card form" method="post" action="{{ url_for('settings') }}">
+  <label class="field">
+    <span>Logo library folder</span>
+    <input type="text" name="library_root" value="{{ cfg.library_root }}"
+           placeholder="e.g. G:\My Drive\Logo Library">
+    <small>The folder that contains your profile sub-folders (each with <code>logos/</code>,
+    <code>tags.csv</code>, <code>theme.json</code>). This is usually your
+    <strong>Google Drive for Desktop</strong> folder. Set it once.</small>
+  </label>
+
+  <label class="field">
+    <span>Save PDFs to</span>
+    <input type="text" name="output_dir" value="{{ cfg.output_dir }}"
+           placeholder="e.g. C:\Users\you\Desktop">
+    <small>Where generated PDFs are written.</small>
+  </label>
+
+  <button class="btn primary" type="submit">Save</button>
+</form>
+
+<div class="card">
+  <h2>Profiles detected</h2>
+  {% if profiles %}
+    <ul class="pills">{% for p in profiles %}<li>{{ p }}</li>{% endfor %}</ul>
+  {% else %}
+    <p class="hint">None yet — check the library folder path above.</p>
+  {% endif %}
+</div>
+
+<details class="card help">
+  <summary>How do I find my Google Drive folder path? (Windows)</summary>
+  <ol>
+    <li>Install <strong>Google Drive for Desktop</strong> and sign in.</li>
+    <li>Open <strong>File Explorer</strong> — Google Drive appears as a drive (often <code>G:</code>).</li>
+    <li>Navigate into the shared <em>Logo Library</em> folder your admin shared with you.</li>
+    <li>Click the address bar, copy the full path, and paste it above.</li>
+  </ol>
+</details>
+{% endblock %}

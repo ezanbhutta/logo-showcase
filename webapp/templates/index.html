@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Make a client PDF</h1>
+<p class="lede">Pick a profile, narrow it down, and generate a polished slice — or a full range sheet.</p>
+
+{% if not profiles %}
+  <div class="empty-state">
+    <p>No profiles found in your library folder.</p>
+    <a class="btn" href="{{ url_for('settings') }}">Set your library folder →</a>
+  </div>
+{% else %}
+<form class="card form" method="post" action="{{ url_for('generate') }}">
+  <label class="field">
+    <span>Profile</span>
+    <select name="profile" id="profile" required>
+      {% for p in profiles %}<option value="{{ p }}">{{ p }}</option>{% endfor %}
+    </select>
+  </label>
+
+  <div class="grid2">
+    <div class="field">
+      <span>Industries</span>
+      <div id="industries" class="checks">Loading…</div>
+    </div>
+    <div class="field">
+      <span>Types</span>
+      <div id="types" class="checks">Loading…</div>
+    </div>
+  </div>
+
+  <div class="grid3">
+    <label class="field">
+      <span>Match</span>
+      <select name="match">
+        <option value="any">Any selected (broad)</option>
+        <option value="all">All selected (narrow)</option>
+      </select>
+    </label>
+    <label class="field">
+      <span>Output</span>
+      <select name="mode" id="mode">
+        <option value="slice">Slice — client deliverable</option>
+        <option value="range">Range sheet — show breadth</option>
+      </select>
+    </label>
+    <label class="field" id="count-field">
+      <span>Max logos</span>
+      <input type="number" name="count" value="12" min="1" max="60">
+    </label>
+  </div>
+
+  <button class="btn primary" type="submit">Generate PDF</button>
+  <p class="hint">Tip: leave the filters empty to include the whole profile.</p>
+</form>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='index.js') }}"></script>
+{% endblock %}

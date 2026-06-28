@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block content %}
+{% if ok %}
+  <div class="card result ok">
+    <div class="check">✓</div>
+    <h1>Your PDF is ready</h1>
+    <p class="lede">
+      <strong>{{ count }}</strong> {{ 'logo' if count == 1 else 'logos' }} ·
+      {{ theme_name }} · {{ mode }} · {{ size_kb }} KB
+    </p>
+    <a class="btn primary big" href="{{ download_url }}">Download {{ filename }}</a>
+    <p class="hint">Also saved to your output folder:<br><code>{{ out_dir }}</code></p>
+    <p><a href="{{ url_for('index') }}">← Make another</a></p>
+  </div>
+{% else %}
+  <div class="card result err">
+    <div class="check">!</div>
+    <h1>Couldn't make that PDF</h1>
+    <p class="lede">{{ error }}</p>
+    <p><a class="btn" href="{{ url_for('index') }}">← Back</a></p>
+  </div>
+{% endif %}
+{% endblock %}
