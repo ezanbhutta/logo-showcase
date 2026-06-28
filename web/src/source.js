@@ -20,15 +20,24 @@ export class FsSource {
   async _profiles() {
     if (this._profileDirs) return this._profileDirs;
     const map = new Map();
+    // A studio is any folder that contains a tags.csv (theme.json is optional —
+    // a sensible default theme is used when it's missing). We also support the
+    // case where the attached folder IS a single studio.
+    let rootHasTags = false;
+    const subdirs = [];
     for await (const [name, handle] of this.root.entries()) {
-      if (handle.kind !== "directory") continue;
-      // A profile folder has both tags.csv and theme.json.
-      let hasTags = false, hasTheme = false;
-      for await (const [child, ch] of handle.entries()) {
-        if (ch.kind === "file" && child === "tags.csv") hasTags = true;
-        if (ch.kind === "file" && child === "theme.json") hasTheme = true;
-      }
-      if (hasTags && hasTheme) map.set(name, handle);
+      if (handle.kind === "file" && name === "tags.csv") rootHasTags = true;
+      else if (handle.kind === "directory") subdirs.push([name, handle]);
+    }
+    if (rootHasTags) map.set(this.root.name || "library", this.root);
+    for (const [name, handle] of subdirs) {
+      let hasTags = false;
+      try {
+        for await (const [child, ch] of handle.entries()) {
+          if (ch.kind === "file" && child === "tags.csv") { hasTags = true; break; }
+        }
+      } catch { /* unreadable subfolder — skip */ }
+      if (hasTags) map.set(name, handle);
     }
     this._profileDirs = map;
     return map;

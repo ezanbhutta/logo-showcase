@@ -7,6 +7,9 @@ import { parseLibrary, activeEntries, matches } from "./src/library.js";
 import { parseTheme } from "./src/theme.js";
 import { curate, describeQuery, typeLabel, titleCase } from "./src/curate.js";
 import { renderSlice, renderRange } from "./src/pdf.js";
+import { INDUSTRIES, TYPES } from "./src/vocab.js";
+
+const LAST_PROFILE = "ls-last-profile";
 
 const $ = (s) => document.querySelector(s);
 const $$ = (s) => [...document.querySelectorAll(s)];
@@ -19,12 +22,15 @@ const state = {
   meta: new Map(),       // profile -> theme (light)
   thumbs: new Map(),
   blobUrl: null,
+  pendingHandle: null,   // saved folder awaiting a one-click reconnect
 };
 
 // ---- data ------------------------------------------------------------------
 async function getMeta(profile) {
   if (state.meta.has(profile)) return state.meta.get(profile);
-  const t = parseTheme(await state.source.getText(profile, "theme.json"), profile);
+  // theme.json is optional — fall back to a sensible default theme.
+  const json = await state.source.getText(profile, "theme.json").catch(() => "{}");
+  const t = parseTheme(json, profile);
   state.meta.set(profile, t);
   return t;
 }
@@ -32,7 +38,7 @@ async function loadProfile(profile) {
   if (state.profiles.has(profile)) return state.profiles.get(profile);
   const [csv, themeJson] = await Promise.all([
     state.source.getText(profile, "tags.csv"),
-    state.source.getText(profile, "theme.json"),
+    state.source.getText(profile, "theme.json").catch(() => "{}"),
   ]);
   const data = { entries: parseLibrary(csv), theme: parseTheme(themeJson, profile) };
   state.profiles.set(profile, data);
@@ -119,14 +125,34 @@ async function onSourceChanged() {
   await refreshProfiles();
 }
 async function refreshProfiles() {
-  let names = [];
-  try { names = await state.source.listProfiles(); } catch (e) { console.error(e); }
+  let names = [], err = null;
+  try { names = await state.source.listProfiles(); } catch (e) { err = e; console.error(e); }
   const opts = [];
   for (const n of names) { try { opts.push([n, (await getMeta(n)).name]); } catch { opts.push([n, n]); } }
   for (const sel of ["#make-profile", "#gal-profile"]) {
     $(sel).innerHTML = opts.map(([v, label]) => `<option value="${v}">${label}</option>`).join("");
   }
-  if (names.length) { await onMakeProfile(); await loadGallery(); }
+
+  const empty = $("#no-studios");
+  if (!names.length) {
+    empty.hidden = false;
+    empty.innerHTML = state.isDemo
+      ? "No demo studios available."
+      : `No studios found in <b>${state.sourceLabel}</b>. Each studio needs its own sub-folder `
+        + `containing a <code>tags.csv</code> file (<code>theme.json</code> is optional). `
+        + `<button class="link" id="goto-guide">See how to organise your folder →</button>`
+        + (err ? `<br><small class="muted">${err.message}</small>` : "");
+    const g = document.getElementById("goto-guide");
+    if (g) g.addEventListener("click", () => switchView("settings"));
+    return;
+  }
+  empty.hidden = true;
+
+  // Restore the previously selected studio so it stays selected across reloads.
+  const last = localStorage.getItem(LAST_PROFILE);
+  if (last && names.includes(last)) { $("#make-profile").value = last; $("#gal-profile").value = last; }
+  await onMakeProfile();
+  await loadGallery();
 }
 
 // ---- Create view -----------------------------------------------------------
@@ -135,6 +161,7 @@ const mk = { industries: new Set(), types: new Set(), match: "any", mode: "slice
 async function onMakeProfile() {
   const profile = $("#make-profile").value;
   if (!profile) return;
+  localStorage.setItem(LAST_PROFILE, profile);
   setStatus("");
   mk.industries.clear(); mk.types.clear();
   try {
@@ -167,13 +194,12 @@ async function onGenerate() {
     const count = parseInt($("#make-count").value, 10) || 12;
     const chosen = curate(entries, q, mk.mode === "slice" ? count : null);
     if (!chosen.length) throw new Error(`No logos match [${describeQuery(q.industries, q.types, q.matchAll)}].`);
-    const opts = { clientName: $("#make-client").value.trim(), dateStr: $("#make-date").value.trim() };
+    const opts = { dateStr: defaultDate() };
     const bytes = mk.mode === "slice"
       ? await renderSlice(state.source, profile, theme, chosen, q, opts)
       : await renderRange(state.source, profile, theme, chosen, q, opts);
-    const fname = `${profile}-${mk.mode}${opts.clientName ? "-" + slug(opts.clientName) : ""}.pdf`;
-    openPreview(bytes, fname, `${theme.name} · ${chosen.length} marks`);
-    pushRecent({ profile, name: theme.name, mode: mk.mode, client: opts.clientName,
+    openPreview(bytes, `${profile}-${mk.mode}.pdf`, `${theme.name} · ${chosen.length} marks`);
+    pushRecent({ profile, name: theme.name, mode: mk.mode,
       industries: q.industries, types: q.types, match: mk.match, count });
     setStatus("✓ Preview ready", "ok");
   } catch (e) { setStatus(e.message, "err"); }
@@ -206,7 +232,6 @@ function renderRecents() {
 async function applyRecent(r) {
   $("#make-profile").value = r.profile;
   await onMakeProfile();
-  $("#make-client").value = r.client || "";
   (r.industries || []).forEach((v) => togglePill($("#make-industries"), v, mk.industries, true));
   (r.types || []).forEach((v) => togglePill($("#make-types"), v, mk.types, true));
   setSegmented($("#make-match"), r.match || "any"); mk.match = r.match || "any";
@@ -229,6 +254,7 @@ const gal = { entries: [], theme: null, profile: "", industries: new Set(), type
 async function loadGallery() {
   const profile = $("#gal-profile").value;
   if (!profile) return;
+  localStorage.setItem(LAST_PROFILE, profile);
   gal.profile = profile; gal.industries.clear(); gal.types.clear(); gal.selected.clear(); gal.search = "";
   $("#gal-search").value = "";
   const { entries, theme } = await loadProfile(profile);
@@ -287,10 +313,28 @@ async function connectFolder() {
   try {
     const handle = await window.showDirectoryPicker({ mode: "read" });
     if (!(await verifyPermission(handle))) return;
+    state.pendingHandle = null;
     await saveHandle(handle); await useFolder(handle); switchView("make");
   } catch (e) { if (e.name !== "AbortError") alert("Couldn't open that folder: " + e.message); }
 }
-async function disconnectFolder() { await clearHandle(); await useDemo(); }
+async function disconnectFolder() { state.pendingHandle = null; await clearHandle(); await useDemo(); }
+
+// A folder was attached before but the browser needs one click to re-grant
+// read access (it can't silently reopen local files). One click restores it.
+async function reconnectFolder() {
+  const h = state.pendingHandle;
+  if (!h) return connectFolder();
+  if (await verifyPermission(h)) {
+    state.pendingHandle = null;
+    await saveHandle(h); await useFolder(h); switchView("make");
+  }
+}
+function showReconnectBanner() {
+  const name = state.pendingHandle?.name || "your library folder";
+  $("#banner-text").innerHTML = `Library folder <strong>${name}</strong> is saved — reconnect to continue.`;
+  $("#banner-connect").textContent = "Reconnect →";
+  $("#connect-banner").hidden = false;
+}
 
 // ---- view switching --------------------------------------------------------
 function switchView(view) {
@@ -332,15 +376,44 @@ function wire() {
   gp.addEventListener("click", galPreview);
 
   $("#connect-folder").addEventListener("click", connectFolder);
-  $("#banner-connect").addEventListener("click", connectFolder);
+  $("#banner-connect").addEventListener("click", reconnectFolder);
   $("#disconnect-folder").addEventListener("click", disconnectFolder);
 
   $$("[data-close]").forEach((b) => b.addEventListener("click", closePreview));
   document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !$("#preview").hidden) closePreview(); });
 
-  $("#make-date").value = defaultDate();
+  renderGuide();
+  $("#dl-template").addEventListener("click", () => downloadText("tags.csv", TAGS_TEMPLATE, "text/csv"));
+  $("#dl-theme").addEventListener("click", () => downloadText("theme.json", THEME_TEMPLATE, "application/json"));
+
   syncMode();
   renderRecents();
+}
+
+// ---- library guide ---------------------------------------------------------
+const TAGS_TEMPLATE = `file,name,industries,types,tier,year,active,notes
+example-logo.png,Example Brand,construction|real-estate,combination,1,2025,true,first row is the header
+another-mark.png,Another Mark,finance-banking,wordmark,2,2024,true,
+`;
+const THEME_TEMPLATE = JSON.stringify({
+  id: "my-studio", name: "My Studio", sort_primary: "industry",
+  palette: { ink: "#15181E", paper: "#FFFFFF", accent: "#7229FF", accent_soft: "#F1EBFF",
+    muted: "#6B7280", cover_bg: "#15181E", cover_fg: "#FFFFFF" },
+  fonts: { display: "Archivo", body: "Archivo", serif: "Spectral" },
+  layout: { cover_style: "editorial", tile_cols: 3, tile_radius_mm: 3, density: "comfortable" },
+  labels: { slice_kicker: "Selected work", range_title: "Full range" },
+}, null, 2);
+
+function renderGuide() {
+  const ind = $("#vocab-industries"), typ = $("#vocab-types");
+  if (ind) ind.innerHTML = INDUSTRIES.map((v) => `<span class="tagword">${v}</span>`).join("");
+  if (typ) typ.innerHTML = TYPES.map((v) => `<span class="tagword">${v}</span>`).join("");
+}
+function downloadText(filename, text, mime) {
+  const url = URL.createObjectURL(new Blob([text], { type: mime }));
+  const a = document.createElement("a"); a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
 }
 
 async function init() {
@@ -348,8 +421,16 @@ async function init() {
   if (fsAccessSupported()) {
     try {
       const handle = await loadHandle();
-      if (handle && (await handle.queryPermission({ mode: "read" })) === "granted") { await useFolder(handle); return; }
-    } catch (e) { /* demo */ }
+      if (handle) {
+        const perm = await handle.queryPermission({ mode: "read" });
+        if (perm === "granted") { await useFolder(handle); return; }
+        // Saved but needs a click to re-grant — keep it and offer reconnect.
+        state.pendingHandle = handle;
+        await useDemo();
+        showReconnectBanner();
+        return;
+      }
+    } catch (e) { /* fall through to demo */ }
   }
   await useDemo();
 }

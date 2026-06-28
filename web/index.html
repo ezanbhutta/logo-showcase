@@ -3,15 +3,21 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Logo Showcase</title>
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%230B0B0F'/><circle cx='16' cy='16' r='6' fill='%236E56F8'/></svg>">
+  <title>Logo Showcase · HaseebMadeIt</title>
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
   <link rel="stylesheet" href="styles.css">
   <script src="lib/pdf-lib.min.js"></script>
   <script src="lib/fontkit.umd.min.js"></script>
 </head>
 <body>
   <header class="appbar">
-    <div class="brand">Logo Showcase</div>
+    <div class="brand">
+      <svg class="brand-mark" viewBox="0 0 392.35 392.35" aria-hidden="true">
+        <rect width="392.35" height="392.35" rx="76" fill="#7229FF"/>
+        <path fill="#fff" d="M187.32,115.24h17.71c2.46,0,4.46,1.99,4.46,4.46v61.29c0,1.98-1.31,3.73-3.21,4.28l-17.71,5.16c-2.86.83-5.7-1.31-5.7-4.28v-66.45c0-2.46,1.99-4.46,4.46-4.46ZM167.44,142.55v50.69c0,1.98-1.31,3.73-3.21,4.28l-17.71,5.16c-2.86.83-5.7-1.31-5.7-4.28v-55.85c0-2.46,1.99-4.46,4.46-4.46h17.71c2.46,0,4.46,1.99,4.46,4.46ZM144.03,219.52l17.71-5.16c2.86-.83,5.7,1.31,5.7,4.28v31.16c0,2.46-1.99,4.46-4.46,4.46h-17.71c-2.46,0-4.46-1.99-4.46-4.46v-26c0-1.98,1.31-3.73,3.21-4.28ZM186.07,207.27l17.71-5.16c2.86-.83,5.7,1.31,5.7,4.28v66.26c0,2.46-1.99,4.46-4.46,4.46h-17.71c-2.46,0-4.46-1.99-4.46-4.46v-61.1c0-1.99,1.31-3.73,3.21-4.28ZM224.9,249.8v-50.5c0-1.98,1.31-3.73,3.21-4.28l17.71-5.16c2.86-.83,5.7,1.31,5.7,4.28v55.66c0,2.46-1.99,4.46-4.46,4.46h-17.71c-2.46,0-4.46-1.99-4.46-4.46ZM251.52,142.55v26.19c0,1.99-1.31,3.73-3.21,4.28l-17.71,5.16c-2.86.83-5.7-1.31-5.7-4.28v-31.35c0-2.46,1.99-4.46,4.46-4.46h17.71c2.46,0,4.46,1.99,4.46,4.46h0Z"/>
+      </svg>
+      <span class="brand-text">Logo Showcase<small>HaseebMadeIt</small></span>
+    </div>
     <nav class="tabs">
       <button class="tab active" data-view="make"><span>Create</span></button>
       <button class="tab" data-view="gallery"><span>Gallery</span></button>
@@ -21,7 +27,7 @@
   </header>
 
   <div id="connect-banner" class="banner" hidden>
-    <span>Showing <strong>demo logos</strong> — connect your library folder to use your own.</span>
+    <span id="banner-text">Showing <strong>demo logos</strong> — connect your library folder to use your own.</span>
     <button class="link" id="banner-connect">Connect folder →</button>
   </div>
 
@@ -30,8 +36,10 @@
     <section id="view-make" class="view container">
       <div class="page-head">
         <h1>Create a presentation</h1>
-        <p class="lede">Pick a studio, personalise it for the client, and preview a polished PDF in seconds.</p>
+        <p class="lede">Pick a studio, narrow it down, and preview a polished PDF in seconds.</p>
       </div>
+
+      <div id="no-studios" class="callout" hidden></div>
 
       <div class="panel">
         <div class="panel-row">
@@ -39,15 +47,6 @@
             <div class="select-wrap"><select id="make-profile"></select></div>
           </label>
           <div class="swatches" id="make-swatches" aria-hidden="true"></div>
-        </div>
-
-        <div class="panel-row">
-          <label class="field grow"><span class="lbl">Client name <em>(optional)</em></span>
-            <input type="text" id="make-client" placeholder="e.g. Acme Coffee Roasters" autocomplete="off">
-          </label>
-          <label class="field"><span class="lbl">Date</span>
-            <input type="text" id="make-date" placeholder="June 2026" autocomplete="off">
-          </label>
         </div>
       </div>
 
@@ -152,6 +151,58 @@
           This browser can't open a local folder. Please use <strong>Google Chrome</strong> or <strong>Microsoft Edge</strong> on a computer.
         </div>
       </div>
+      <div class="panel guide">
+        <h2>How to organise your library folder</h2>
+        <p class="muted">Point the app at <strong>one library folder</strong>. Inside it, create
+        <strong>one sub-folder per studio</strong>. Each studio folder holds a <code>logos/</code>
+        folder plus two small text files. That's the whole structure:</p>
+        <pre class="tree">Logo Library/            <span class="c">← the folder you attach</span>
+├── storm/               <span class="c">← one folder per studio (kebab-case)</span>
+│   ├── logos/           <span class="c">← master images live here</span>
+│   │   ├── apex-builders.png
+│   │   └── greenleaf.png
+│   ├── tags.csv         <span class="c">← the label sheet</span>
+│   └── theme.json       <span class="c">← this studio's colours & fonts</span>
+├── eikon/
+│   └── …
+└── grid/ …</pre>
+
+        <h3>File formats <span class="req">required</span></h3>
+        <table class="fmt">
+          <tr><td><code>logos/*.png</code></td><td><b>PNG</b> · transparent background preferred · ≥ 1200&nbsp;px on the long edge</td></tr>
+          <tr><td><code>tags.csv</code></td><td><b>CSV</b> · UTF-8, comma-separated, with a header row</td></tr>
+          <tr><td><code>theme.json</code></td><td><b>JSON</b> · the studio's palette, fonts, layout</td></tr>
+        </table>
+
+        <h3>Naming rules</h3>
+        <ul class="muted">
+          <li><b>Studio folder</b> — short, lowercase, hyphens not spaces: <code>abdul-haseeb</code>, <code>grid</code>.</li>
+          <li><b>Logo file</b> — lowercase, hyphens, unique within the studio, and it <b>must match</b> the <code>file</code> column in <code>tags.csv</code>: <code>apex-builders.png</code>.</li>
+          <li>No spaces, capitals or symbols in any file or folder name.</li>
+        </ul>
+
+        <h3>What goes in <code>tags.csv</code></h3>
+        <p class="muted">One row per logo. Columns: <code>file, name, industries, types, tier, year, active, notes</code>.</p>
+        <table class="fmt">
+          <tr><td><code>file</code></td><td>Filename in <code>logos/</code> (the join key).</td></tr>
+          <tr><td><code>name</code></td><td>Brand name shown on the tile.</td></tr>
+          <tr><td><code>industries</code></td><td>One or more, separated by <code>|</code>. From the list below.</td></tr>
+          <tr><td><code>types</code></td><td>One or more, separated by <code>|</code>. From the list below.</td></tr>
+          <tr><td><code>tier</code></td><td>1–5. <b>1 = flagship</b> (shown first), 5 = filler.</td></tr>
+          <tr><td><code>year</code> · <code>active</code> · <code>notes</code></td><td>Optional. <code>active=false</code> hides a logo.</td></tr>
+        </table>
+
+        <h3>How to categorise</h3>
+        <p class="muted">Values <b>must</b> come from these lists (the app rejects anything else, so labels never drift). A logo can carry several of each — tag once, surface everywhere.</p>
+        <div class="vocab"><span class="vk">Industries</span><span id="vocab-industries"></span></div>
+        <div class="vocab"><span class="vk">Types</span><span id="vocab-types"></span></div>
+
+        <div class="actions left" style="margin-top:1rem">
+          <button class="ghost" id="dl-template">Download tags.csv template</button>
+          <button class="ghost" id="dl-theme">Download theme.json template</button>
+        </div>
+      </div>
+
       <details class="panel">
         <summary>How it works</summary>
         <ul class="muted">
