@@ -124,13 +124,13 @@ export const THEMES = {
     "name": "Dygram Design",
     "sort_primary": "type",
     "palette": {
-      "ink": "#11161C",
+      "ink": "#12150C",
       "paper": "#FFFFFF",
-      "accent": "#1F6FEB",
-      "accent_soft": "#E6EFFE",
-      "muted": "#64748B",
-      "cover_bg": "#0E1B2E",
-      "cover_fg": "#EAF2FF"
+      "accent": "#7FA61C",
+      "accent_soft": "#EEF4D8",
+      "muted": "#6B7350",
+      "cover_bg": "#0A0A0A",
+      "cover_fg": "#EAF3CF"
     },
     "fonts": {
       "display": "SpaceGrotesk",
@@ -211,12 +211,12 @@ export const THEMES = {
     "name": "Storm Design",
     "sort_primary": "industry",
     "palette": {
-      "ink": "#15181E",
+      "ink": "#1B0E16",
       "paper": "#FFFFFF",
-      "accent": "#E2683C",
-      "accent_soft": "#FBEDE6",
-      "muted": "#6B7280",
-      "cover_bg": "#15181E",
+      "accent": "#E51E79",
+      "accent_soft": "#FCE0EE",
+      "muted": "#8A6C7A",
+      "cover_bg": "#E51E79",
       "cover_fg": "#FFFFFF"
     },
     "fonts": {
@@ -269,13 +269,13 @@ export const THEMES = {
     "name": "XStudioz",
     "sort_primary": "type",
     "palette": {
-      "ink": "#0B0B0F",
+      "ink": "#160A28",
       "paper": "#FFFFFF",
-      "accent": "#6E56F8",
-      "accent_soft": "#ECE9FE",
-      "muted": "#71717A",
-      "cover_bg": "#0B0B0F",
-      "cover_fg": "#F6F5FF"
+      "accent": "#9B4DFF",
+      "accent_soft": "#EFE6FF",
+      "muted": "#7A6E92",
+      "cover_bg": "#3B1670",
+      "cover_fg": "#F4ECFF"
     },
     "fonts": {
       "display": "Syne",

@@ -97,6 +97,28 @@ export async function preview(blob, key, bgHex = "#FFFFFF", maxEdge = 1000) {
   return result;
 }
 
+// Rasterise a logo to PNG bytes preserving transparency (no background fill).
+// Used for studio brandmarks placed on dark/coloured PDF covers.
+export async function previewPNG(blob, key, maxEdge = 700) {
+  const ck = `png:${key}|${maxEdge}`;
+  if (cache.has(ck)) return cache.get(ck);
+  const src = await rasterSource(blob, key, maxEdge);
+  const scale = Math.min(1, maxEdge / Math.max(src.width, src.height));
+  const width = Math.max(1, Math.round(src.width * scale));
+  const height = Math.max(1, Math.round(src.height * scale));
+  const canvas = document.createElement("canvas");
+  canvas.width = width; canvas.height = height;
+  const ctx = canvas.getContext("2d");
+  ctx.imageSmoothingQuality = "high";
+  ctx.drawImage(src.source, 0, 0, width, height);
+  src.source.close?.();
+  const out = await new Promise((res) => canvas.toBlob(res, "image/png"));
+  const bytes = new Uint8Array(await out.arrayBuffer());
+  const result = { bytes, width, height, format: "png" };
+  cache.set(ck, result);
+  return result;
+}
+
 // A small object URL for on-screen thumbnails. Raster/SVG can be shown directly
 // in an <img>; PDFs are rasterised first.
 export async function thumbUrl(blob, name = "") {
