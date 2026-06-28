@@ -13,6 +13,23 @@
 // Access) and DemoPortfolio (bundled demo via fetch + manifest).
 
 import { THEMES, detectProfile } from "./themes.js";
+import { parseCSV } from "./csv.js";
+
+const norm = (v) => v.trim().toLowerCase().replace(/\s+/g, "-");
+// Parse an optional tags.csv (columns: brand|file, industries, types) into a
+// Map keyed by lowercased brand → { industries[], types[] }.
+function parseTags(text) {
+  const map = new Map();
+  if (!text) return map;
+  const { records } = parseCSV(text);
+  for (const r of records) {
+    const key = (r.brand || r.name || (r.file || "").replace(/\.[^.]+$/, "")).trim().toLowerCase();
+    if (!key) continue;
+    const split = (s) => (s || "").split("|").map(norm).filter(Boolean);
+    map.set(key, { industries: split(r.industries), types: split(r.types) });
+  }
+  return map;
+}
 
 export const TYPES = [
   { key: "logos",      label: "Logos",            dirs: ["logos", "logo"],
@@ -74,13 +91,24 @@ export class FsPortfolio {
     return map;
   }
   async types() { const d = await this._typeDirs(); return TYPES.filter((t) => d[t.key]); }
+  async _tags() {
+    if (this._tagMap) return this._tagMap;
+    let text = null;
+    try { text = await (await (await this.root.getFileHandle("tags.csv")).getFile()).text(); } catch {}
+    if (!text) { try { const d = await this._typeDirs(); if (d.logos) text = await (await (await d.logos.getFileHandle("tags.csv")).getFile()).text(); } catch {} }
+    this._tagMap = parseTags(text);
+    return this._tagMap;
+  }
   async assets(typeKey) {
     const d = await this._typeDirs();
     if (!d[typeKey]) return [];
     const files = [];
-    for await (const [fname, h] of d[typeKey].entries()) if (h.kind === "file") files.push(fname);
-    return classify(files, typeKey);
+    for await (const [fname, h] of d[typeKey].entries()) if (h.kind === "file" && fname.toLowerCase() !== "tags.csv") files.push(fname);
+    const list = classify(files, typeKey);
+    if (typeKey === "logos") { const tags = await this._tags(); for (const a of list) { const t = tags.get(a.brand.toLowerCase()) || {}; a.industries = t.industries || []; a.types = t.types || []; } }
+    return list;
   }
+  async hasTags() { return (await this._tags()).size > 0; }
   async getBlob(typeKey, file) {
     const d = await this._typeDirs();
     const fh = await d[typeKey].getFileHandle(file);
@@ -101,7 +129,13 @@ export class DemoPortfolio {
     return { id, theme: THEMES[id] || detectProfile(id).theme };
   }
   async types() { const m = await this._manifest(); return TYPES.filter((t) => (m.types[t.key] || []).length); }
-  async assets(typeKey) { const m = await this._manifest(); return classify(m.types[typeKey] || [], typeKey); }
+  async assets(typeKey) {
+    const m = await this._manifest();
+    const list = classify(m.types[typeKey] || [], typeKey);
+    if (typeKey === "logos" && m.tags) for (const a of list) { const t = m.tags[a.brand] || {}; a.industries = (t.industries || []).map(norm); a.types = (t.types || []).map(norm); }
+    return list;
+  }
+  async hasTags() { const m = await this._manifest(); return !!m.tags; }
   async getBlob(typeKey, file) {
     const m = await this._manifest();
     const folder = (m.dirs && m.dirs[typeKey]) || TYPES.find((x) => x.key === typeKey).label;

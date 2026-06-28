@@ -7,7 +7,8 @@ import {
 } from "./src/source.js";
 import { FsPortfolio, DemoPortfolio, TYPES } from "./src/portfolio.js";
 import { THEMES } from "./src/themes.js";
-import { renderSlice, renderRange } from "./src/pdf.js";
+import { renderSlice, renderRange, renderByType } from "./src/pdf.js";
+import { INDUSTRIES, TYPES as LOGO_TYPES } from "./src/vocab.js";
 
 const $ = (s) => document.querySelector(s);
 const $$ = (s) => [...document.querySelectorAll(s)];
@@ -25,7 +26,8 @@ const state = {
   live: { bytes: null, url: null, running: false, pending: false, wantId: 0 },
   modalUrl: null,
 };
-const mk = { mode: "slice", layout: "grid", columns: "", density: "", cover: true, closing: true };
+const mk = { mode: "slice", layout: "grid", columns: "", density: "", cover: true, closing: true, perType: "" };
+const filters = { industry: "", type: "" };
 
 // ====== blobs ===============================================================
 async function blobUrl(typeKey, file) {
@@ -53,6 +55,7 @@ function toast(msg, kind = "ok") {
 // ====== source / detection ==================================================
 async function onSourceChanged() {
   state.srcGen++; state.assetsCache.clear(); clearBlobs();
+  browseInit = false; browseOpen.clear();
   const prof = state.source.profile();
   state.profileId = prof.id; state.theme = prof.theme || THEMES.eikon;
   state.profileName = state.theme.name || prof.id;
@@ -79,6 +82,7 @@ async function useFolder(h) { state.source = new FsPortfolio(h); state.isDemo = 
 let currentView = "logos", currentType = null;
 function viewExists(v) {
   if (v === "logos" || v === "settings") return true;
+  if (v === "browse") return state.types.length > 0;
   if (v.startsWith("assets:")) return state.types.some((t) => t.key === v.slice(7));
   return false;
 }
@@ -91,6 +95,7 @@ function buildTabs() {
     tabs.appendChild(b);
   };
   if (state.types.some((t) => t.key === "logos")) add("Logos", "logos");
+  if (state.types.length) add("Files", "browse");
   state.types.filter((t) => t.key !== "logos").forEach((t) => add(t.label, `assets:${t.key}`));
   add("Settings", "settings");
 }
@@ -100,28 +105,33 @@ function switchView(view) {
   const isAssets = view.startsWith("assets:");
   $("#view-logos").hidden = view !== "logos";
   $("#view-settings").hidden = view !== "settings";
+  $("#view-browse").hidden = view !== "browse";
   $("#view-assets").hidden = !isAssets;
   if (isAssets) { currentType = view.slice(7); renderAssets(currentType); }
+  if (view === "browse") renderBrowse();
 }
 
 // ====== Logos showcase ======================================================
-function imageLogos() { return state.logos.filter((a) => IMG_KINDS.has(a.kind)); }
+function imageLogos() {
+  return state.logos.filter((a) => IMG_KINDS.has(a.kind))
+    .filter((a) => !filters.industry || (a.industries || []).includes(filters.industry))
+    .filter((a) => !filters.type || (a.types || []).includes(filters.type));
+}
+const toEntry = (a) => ({ file: a.file, name: a.brand, types: a.types || [], industries: a.industries || [], tier: 1, year: null });
 function logoEntries(files) {
   const byFile = new Map(state.logos.map((a) => [a.file, a]));
-  return files.map((f) => byFile.get(f)).filter(Boolean)
-    .map((a) => ({ file: a.file, name: a.brand, types: [], industries: [], tier: 1, year: null }));
+  return files.map((f) => byFile.get(f)).filter(Boolean).map(toEntry);
 }
 function pickedOrAll() {
-  const imgs = imageLogos();
   if (state.picked.length) return logoEntries(state.picked);
-  return imgs.map((a) => ({ file: a.file, name: a.brand, types: [], industries: [], tier: 1, year: null }));
+  return imageLogos().map(toEntry);
 }
 async function renderPicker() {
   const box = $("#logos-picker"); const q = ($("#logos-search").value || "").toLowerCase();
   const imgs = imageLogos().filter((a) => !q || a.brand.toLowerCase().includes(q));
   box.innerHTML = "";
   const empty = $("#logos-empty");
-  const vector = state.logos.length - imageLogos().length;
+  const vector = state.logos.filter((a) => !IMG_KINDS.has(a.kind)).length;
   if (!imageLogos().length) {
     empty.hidden = false;
     empty.innerHTML = state.logos.length
@@ -138,7 +148,7 @@ async function renderPicker() {
     box.appendChild(el);
   }
   const n = state.picked.length;
-  $("#logos-pickcount").textContent = (n ? `${n} selected` : `${imageLogos().length} logos`) + (vector ? ` · ${vector} vector (download only)` : "");
+  $("#logos-pickcount").textContent = (n ? `${n} selected` : `${imageLogos().length} logos`) + (vector ? ` · ${vector} vector (not in deck)` : "");
 }
 function togglePick(file) {
   const i = state.picked.indexOf(file);
@@ -155,13 +165,31 @@ function setPreviewStatus(busy) {
 }
 let renderTimer = null;
 function scheduleRender(delay = 350) { state.live.wantId++; setPreviewStatus(true); clearTimeout(renderTimer); renderTimer = setTimeout(runRender, delay); }
+function subtitleFor() {
+  if (filters.industry && filters.type) return `${titleWord(filters.industry)} · ${titleWord(filters.type)}`;
+  if (filters.industry) return titleWord(filters.industry);
+  if (filters.type) return titleWord(filters.type);
+  return mk.mode === "bytype" ? "By logo type" : "Logo collection";
+}
+const titleWord = (s) => s.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+
 async function buildCurrent() {
   const entries = pickedOrAll();
-  if (!entries.length) throw new Error("No PNG/JPG logos to show");
+  if (!entries.length) throw new Error("No PNG/JPG logos match");
   const q = { industries: [], types: [], matchAll: false };
   const opts = { layout: mk.layout, columns: mk.columns ? parseInt(mk.columns, 10) : null,
     density: mk.density || null, includeCover: mk.cover, includeClosing: mk.closing,
-    subtitle: "Logo collection", dateStr: "" };
+    subtitle: subtitleFor(), dateStr: "" };
+  if (mk.mode === "bytype") {
+    const byType = new Map();
+    for (const e of entries) { const t = (e.types && e.types[0]) || "untyped"; if (!byType.has(t)) byType.set(t, []); byType.get(t).push(e); }
+    const cap = mk.perType ? parseInt(mk.perType, 10) : 0;
+    const groups = [...byType.entries()]
+      .sort((a, b) => (LOGO_TYPES.indexOf(a[0]) + 99) % 100 - (LOGO_TYPES.indexOf(b[0]) + 99) % 100)
+      .map(([type, es]) => ({ type, total: es.length, entries: cap ? es.slice(0, cap) : es }));
+    const bytes = await renderByType(logoSrcAdapter, state.profileId, state.theme, groups, opts);
+    return { bytes, n: entries.length };
+  }
   const bytes = mk.mode === "slice"
     ? await renderSlice(logoSrcAdapter, state.profileId, state.theme, entries, q, opts)
     : await renderRange(logoSrcAdapter, state.profileId, state.theme, entries, q, opts);
@@ -189,19 +217,26 @@ async function runRender() {
     else if (!$("#preview-status").classList.contains("err")) setPreviewStatus(false);
   }
 }
+function setBusy(btn, busy) { if (!btn) return; btn.disabled = busy; const sp = btn.querySelector(".cta-spin"); if (sp) sp.hidden = !busy; }
 function whenIdle(timeout = 6000) {
   return new Promise((res) => { const s = Date.now(); const t = setInterval(() => { if ((!state.live.running && !state.live.pending) || Date.now() - s > timeout) { clearInterval(t); res(); } }, 70); });
+}
+function deckFilename() {
+  const p = [state.profileId];
+  if (mk.mode === "bytype") p.push("by-type");
+  else if (filters.industry || filters.type) { if (filters.industry) p.push(filters.industry); if (filters.type) p.push(filters.type); }
+  else p.push(mk.mode === "range" ? "all" : "selected");
+  return p.join("-") + ".pdf";
 }
 async function downloadLive() {
   const btn = $("#preview-download2");
   if (state.live.running || state.live.pending || !state.live.bytes) { setBusy(btn, true); if (!state.live.bytes && !state.live.running) scheduleRender(0); await whenIdle(); setBusy(btn, false); }
   if (!state.live.bytes) { toast("Nothing to download yet", "warn"); return; }
-  download(state.live.url, `${state.profileId}-${mk.mode}.pdf`);
+  download(state.live.url, deckFilename());
   btn.classList.add("success"); const lab = btn.querySelector(".cta-label"); const old = lab.textContent; lab.textContent = "✓ Saved";
   setTimeout(() => { btn.classList.remove("success"); lab.textContent = old; }, 1400);
   toast("PDF downloaded");
 }
-function setBusy(btn, busy) { btn.disabled = busy; const sp = btn.querySelector(".cta-spin"); if (sp) sp.hidden = !busy; }
 
 // ====== Asset views =========================================================
 async function renderAssets(typeKey) {
@@ -220,14 +255,68 @@ async function renderAssets(typeKey) {
     const card = document.createElement("div"); card.className = "acard";
     const badge = a.kind === "pdf" ? "PDF" : a.kind === "video" ? "VIDEO" : a.ext.toUpperCase();
     card.innerHTML = `<div class="athumb ${a.kind}"><span class="abadge">${badge}</span></div>
-      <div class="acap"><span class="anm">${esc(a.brand)}</span><button class="adl" title="Download" aria-label="Download">↓</button></div>`;
+      <div class="acap"><span class="anm">${esc(a.brand)}</span><span class="aview">View ›</span></div>`;
     const thumb = card.querySelector(".athumb");
     if (a.kind === "image") { const im = document.createElement("img"); blobUrl(typeKey, a.file).then((u) => im.src = u); thumb.appendChild(im); }
-    card.querySelector(".adl").addEventListener("click", async (e) => { e.stopPropagation(); const u = await blobUrl(typeKey, a.file); download(u, a.file); toast("Downloaded"); });
     card.addEventListener("click", () => openAsset(typeKey, a));
     grid.appendChild(card);
   }
 }
+// ====== Files tree (folder/subfolder browse) ================================
+const browseOpen = new Set();
+let browseInit = false;
+async function loadAssets(typeKey) {
+  let a = state.assetsCache.get(typeKey);
+  if (!a) { a = await state.source.assets(typeKey).catch(() => []); state.assetsCache.set(typeKey, a); }
+  return a;
+}
+async function renderBrowse() {
+  const tree = $("#browse-tree");
+  const q = ($("#browse-search").value || "").trim().toLowerCase();
+  if (!browseInit) { state.types.forEach((t) => browseOpen.add(t.key)); browseInit = true; }
+  tree.innerHTML = "<div class='muted' style='padding:1rem'>Loading…</div>";
+  const data = [];
+  for (const t of state.types) {
+    const assets = await loadAssets(t.key);
+    const visible = assets.filter((a) => !q || a.brand.toLowerCase().includes(q) || a.file.toLowerCase().includes(q));
+    data.push({ t, total: assets.length, visible });
+  }
+  tree.innerHTML = "";
+  const totalFiles = data.reduce((n, d) => n + d.total, 0);
+  const matchFiles = data.reduce((n, d) => n + d.visible.length, 0);
+  const emptyT = $("#browse-empty-t");
+  $("#browse-empty").hidden = !(totalFiles === 0 || matchFiles === 0);
+  if (totalFiles === 0) { emptyT.textContent = "No files in this portfolio yet"; return; }
+  if (matchFiles === 0) { emptyT.textContent = "No files match your search"; return; }
+  for (const { t, total, visible } of data) {
+    if (q && !visible.length) continue;                  // hide non-matching folders while searching
+    const open = q ? true : browseOpen.has(t.key);
+    const node = document.createElement("div");
+    node.className = "tnode" + (open ? " open" : "");
+    const count = q ? `${visible.length} of ${total}` : `${total}`;
+    node.innerHTML = `<button class="tfhead" type="button" aria-expanded="${open}">
+        <span class="tchev">▸</span><span class="tfico">📁</span>
+        <span class="tflabel">${esc(t.label)}</span><span class="tcount">${esc(count)}</span></button>
+      <div class="tfiles"></div>`;
+    const filesBox = node.querySelector(".tfiles");
+    for (const a of visible) {
+      const badge = a.kind === "pdf" ? "PDF" : a.kind === "video" ? "VID" : a.ext.toUpperCase();
+      const row = document.createElement("button");
+      row.className = "trow"; row.type = "button";
+      row.innerHTML = `<span class="tkind ${a.kind}">${esc(badge)}</span><span class="tname">${esc(a.brand)}</span>` +
+        `<span class="tfile">${esc(a.file)}</span><span class="tview">View ›</span>`;
+      row.addEventListener("click", () => openAsset(t.key, a));
+      filesBox.appendChild(row);
+    }
+    if (!q) node.querySelector(".tfhead").addEventListener("click", () => {
+      const o = browseOpen.has(t.key);
+      if (o) browseOpen.delete(t.key); else browseOpen.add(t.key);
+      node.classList.toggle("open", !o); node.querySelector(".tfhead").setAttribute("aria-expanded", String(!o));
+    });
+    tree.appendChild(node);
+  }
+}
+
 async function openAsset(typeKey, a) {
   const url = await blobUrl(typeKey, a.file);
   $("#preview-title").textContent = a.brand;
@@ -238,8 +327,6 @@ async function openAsset(typeKey, a) {
   if (a.kind === "pdf") { frame.hidden = false; frame.onload = () => load.hidden = true; frame.src = url; setTimeout(() => load.hidden = true, 1200); }
   else if (a.kind === "video") { vid.src = url; vid.hidden = false; load.hidden = true; }
   else { img.onload = () => load.hidden = true; img.src = url; img.hidden = false; setTimeout(() => load.hidden = true, 800); }
-  $("#preview-download").onclick = () => { download(url, a.file); toast("Downloaded"); };
-  $("#preview-open").onclick = () => window.open(url, "_blank");
   $("#preview").hidden = false;
 }
 function closeModal() {
@@ -254,9 +341,7 @@ function expandLive() {
   $("#preview-title").textContent = `${state.profileName} — Logos`; $("#preview-sub").textContent = "Live preview";
   const frame = $("#preview-frame"), img = $("#preview-img"), vid = $("#preview-video"), load = $("#preview-loading");
   img.hidden = vid.hidden = true; frame.hidden = false; load.hidden = false;
-  frame.onload = () => load.hidden = true; frame.src = state.modalUrl + "#view=FitH"; setTimeout(() => load.hidden = true, 1000);
-  $("#preview-download").onclick = () => { download(state.modalUrl, `${state.profileId}-${mk.mode}.pdf`); toast("PDF downloaded"); };
-  $("#preview-open").onclick = () => window.open(state.modalUrl, "_blank");
+  frame.onload = () => load.hidden = true; frame.src = state.modalUrl + "#toolbar=0&navpanes=0&view=FitH"; setTimeout(() => load.hidden = true, 1000);
   $("#preview").hidden = false;
 }
 
@@ -294,11 +379,12 @@ let PALETTE = [], palIdx = 0;
 function buildPalette() {
   PALETTE = [
     { label: "Logos showcase", run: () => switchView("logos") },
+    ...(state.types.length ? [{ label: "Files · browse folders", run: () => switchView("browse") }] : []),
     ...state.types.filter((t) => t.key !== "logos").map((t) => ({ label: `Open · ${t.label}`, run: () => switchView(`assets:${t.key}`) })),
     { label: "Settings", run: () => switchView("settings") },
     { label: "Output · Slice", run: () => { setSeg($("#opt-mode"), "slice"); mk.mode = "slice"; syncMode(); scheduleRender(60); } },
     { label: "Output · Range sheet", run: () => { setSeg($("#opt-mode"), "range"); mk.mode = "range"; syncMode(); scheduleRender(60); } },
-    { label: "Download logo PDF", key: "⌘↵", run: downloadLive },
+    { label: "View deck fullscreen", key: "⌘↵", run: expandLive },
     { label: "Toggle dark mode", key: "⌘D", run: () => applyTheme(document.documentElement.dataset.theme === "dark" ? "light" : "dark") },
     { label: "Link portfolio folder", run: connectFolder },
   ];
@@ -315,7 +401,11 @@ function renderPalette(q) {
 // ====== segmented helper ====================================================
 function setSeg(el, val) { el.querySelectorAll(".seg").forEach((b) => { const a = b.dataset.val === val; b.classList.toggle("active", a); b.setAttribute("aria-checked", String(a)); }); }
 function wireSeg(el, cb) { el.querySelectorAll(".seg").forEach((b) => b.addEventListener("click", () => { setSeg(el, b.dataset.val); cb(b.dataset.val); })); }
-function syncMode() { const r = mk.mode === "range"; const lay = $("#opt-layout"); lay.style.opacity = r ? ".4" : "1"; lay.style.pointerEvents = r ? "none" : ""; }
+function syncMode() {
+  const lay = $("#opt-layout"); const dim = mk.mode !== "slice";
+  lay.style.opacity = dim ? ".4" : "1"; lay.style.pointerEvents = dim ? "none" : "";
+  $("#pertype-block").style.display = mk.mode === "bytype" ? "" : "none";
+}
 function syncLayout() { const f = $("#opt-cols-field"); const lb = mk.layout === "lookbook"; f.style.opacity = lb ? ".4" : "1"; f.style.pointerEvents = lb ? "none" : ""; }
 
 // ====== wiring ==============================================================
@@ -330,13 +420,19 @@ function wire() {
   $("#opt-cols").addEventListener("change", (e) => { mk.columns = e.target.value; scheduleRender(60); });
   $("#opt-cover").addEventListener("change", (e) => { mk.cover = e.target.checked; scheduleRender(60); });
   $("#opt-closing").addEventListener("change", (e) => { mk.closing = e.target.checked; scheduleRender(60); });
-  const dl = $("#preview-download2"); dl.dataset.label = "Download PDF"; dl.addEventListener("click", downloadLive);
-  $("#preview-open2").addEventListener("click", () => state.live.url && window.open(state.live.url, "_blank"));
+  $("#opt-pertype").addEventListener("change", (e) => { mk.perType = e.target.value; scheduleRender(60); });
+  $("#preview-download2").addEventListener("click", downloadLive);
   $("#preview-expand").addEventListener("click", expandLive);
+  // filters (industry datalist + logo-type select)
+  $("#industry-list").innerHTML = INDUSTRIES.map((v) => `<option value="${v}">`).join("");
+  $("#filter-type").innerHTML = `<option value="">All types</option>` + LOGO_TYPES.map((v) => `<option value="${v}">${v}</option>`).join("");
+  $("#filter-industry").addEventListener("input", (e) => { filters.industry = e.target.value.trim().toLowerCase().replace(/\s+/g, "-"); state.picked = []; renderPicker(); scheduleRender(120); });
+  $("#filter-type").addEventListener("change", (e) => { filters.type = e.target.value; state.picked = []; renderPicker(); scheduleRender(120); });
   $$(".cta").forEach((c) => c.addEventListener("mousemove", (e) => { const r = c.getBoundingClientRect(); c.style.setProperty("--x", `${e.clientX - r.left}px`); c.style.setProperty("--y", `${e.clientY - r.top}px`); }));
 
-  // assets
+  // assets + files tree
   $("#assets-search").addEventListener("input", () => currentType && renderAssets(currentType));
+  $("#browse-search").addEventListener("input", renderBrowse);
 
   // folder / theme / palette
   $("#connect-folder").addEventListener("click", connectFolder);
@@ -367,7 +463,11 @@ function onKey(e) {
   if (meta && e.key === "Enter") { e.preventDefault(); return downloadLive(); }
   if (meta && e.key.toLowerCase() === "d") { e.preventDefault(); return applyTheme(document.documentElement.dataset.theme === "dark" ? "light" : "dark"); }
   if (typing) return;
-  if (e.key === "/") { const s = currentView.startsWith("assets:") ? $("#assets-search") : $("#logos-search"); if (s) { e.preventDefault(); s.focus(); } }
+  if (e.key === "/") {
+    const s = currentView === "browse" ? $("#browse-search")
+      : currentView.startsWith("assets:") ? $("#assets-search") : $("#logos-search");
+    if (s) { e.preventDefault(); s.focus(); }
+  }
 }
 
 async function init() {

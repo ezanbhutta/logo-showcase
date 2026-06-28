@@ -228,12 +228,20 @@ function drawClosing(page, theme, F, ctx) {
 
 function drawGrid(pdf, theme, F, tiles, subtitle, ctx) {
   const pal = theme.palette;
-  const cols = theme.layout.tile_cols;
-  const gm = 16, top = 34;
+  // 6 tiles per page by default (3 × 2), large and evenly distributed so a
+  // short collection still fills the page like a deck, not a few small tiles.
+  const cols = theme.layout.tile_cols || 3;
+  const rowsPerPage = Math.max(1, Math.round(6 / cols));   // cols 3→2, 2→3, 4→2
+  const perPage = cols * rowsPerPage;
+  const gm = 16, top = 36, bottom = 16;
   const gap = theme.layout.density === "comfortable" ? 9 : 6;
   const contentW = 210 - 2 * gm;
   const tileW = (contentW - gap * (cols - 1)) / cols;
-  const imgH = tileW * 0.74, capH = 13, tileH = imgH + capH, rowGap = gap + 4;
+  const capH = 14;
+  const imgH = Math.min(tileW * 0.82, ((297 - bottom - top) - capH * rowsPerPage) / rowsPerPage - 6);
+  const tileH = imgH + capH;
+  const usableH = 297 - bottom - top;
+  const vgap = Math.max(8, (usableH - rowsPerPage * tileH) / (rowsPerPage + 1));   // even vertical breathing
   const nameFont = theme.fonts.display === "Fraunces" ? F("body", "semibold") : F("display", "semibold");
   const headerFont = theme.fonts.display === "Fraunces" ? F("body", "bold") : F("display", "bold");
   const header = (pg) => {
@@ -242,19 +250,21 @@ function drawGrid(pdf, theme, F, tiles, subtitle, ctx) {
     hline(pg, gm, 210 - gm, top - 7, hex(pal.accent), 0.8);
   };
   const pages = [];
-  let page = pdf.addPage([PAGE_W, PAGE_H]); page._F = F; pages.push(page); header(page);
-  let col = 0, rowY = top, idx = 0;
-  for (const { entry, img } of tiles) {
-    if (rowY + tileH > 278) { page = pdf.addPage([PAGE_W, PAGE_H]); page._F = F; pages.push(page); header(page); rowY = top; col = 0; }
-    const x = gm + col * (tileW + gap);
+  let page = null;
+  tiles.forEach(({ entry, img }, i) => {
+    const slot = i % perPage;
+    if (slot === 0) { page = pdf.addPage([PAGE_W, PAGE_H]); page._F = F; pages.push(page); header(page); }
+    const r = Math.floor(slot / cols), c = slot % cols;
+    const x = gm + c * (tileW + gap);
+    const rowY = top + vgap + r * (tileH + vgap);
     rect(page, x, rowY, tileW, imgH, { fill: hex(pal.paper), stroke: hex(pal.accent_soft), line: 0.6 });
     const f = fit(img, tileW, imgH, tileW * 0.13);
     page.drawImage(img, { x: (x + tileW / 2) * MM - (f.w * MM) / 2, y: yT(rowY + imgH / 2) - (f.h * MM) / 2, width: f.w * MM, height: f.h * MM });
-    text(page, x, rowY + imgH + 5.5, String(++idx).padStart(2, "0"), F("body", "semibold"), 7, hex(pal.accent), { tracking: 0.5 });
-    text(page, x + 8, rowY + imgH + 5.5, clip(entry.name, nameFont, 10.5, tileW - 8), nameFont, 10.5, hex(pal.ink));
-    text(page, x + 8, rowY + imgH + 9.6, typeLabel(entry.types).toUpperCase(), F("body", "regular"), 6.6, hex(pal.muted), { tracking: 0.8 });
-    if (++col >= cols) { col = 0; rowY += tileH + rowGap; }
-  }
+    text(page, x, rowY + imgH + 6, String(i + 1).padStart(2, "0"), F("body", "semibold"), 7.5, hex(pal.accent), { tracking: 0.5 });
+    text(page, x + 8.5, rowY + imgH + 6, clip(entry.name, nameFont, 11, tileW - 8.5), nameFont, 11, hex(pal.ink));
+    if (entry.types && entry.types.length)
+      text(page, x + 8.5, rowY + imgH + 10.4, typeLabel(entry.types).toUpperCase(), F("body", "regular"), 6.8, hex(pal.muted), { tracking: 0.8 });
+  });
   return pages;
 }
 
@@ -294,7 +304,7 @@ export async function renderSlice(src, profile, theme, entries, query, opts = {}
   pdf.setCreator("Logo Showcase · HaseebMadeIt");
   // Apply presentation overrides onto an effective theme.
   const T = { ...theme, layout: { ...theme.layout,
-    tile_cols: opts.columns || theme.layout.tile_cols,
+    tile_cols: opts.columns || 3,                 // deck defaults to 3 cols → 6 logos per page
     density: opts.density || theme.layout.density,
     cover_style: opts.coverStyle || theme.layout.cover_style } };
   const F = await makeFonts(pdf, T);
@@ -371,6 +381,65 @@ export async function renderRange(src, profile, theme, entries, query, opts = {}
 
   const total = pdf.getPageCount();
   const startNo = includeCover ? 2 : 1;
+  pages.forEach((pg, i) => text(pg, 105, 290, `${startNo + i} / ${total}`, F("body", "regular"), 8, hex(pal.muted), { align: "center" }));
+  return pdf.save();
+}
+
+// ---- by-type ---------------------------------------------------------------
+// One section per logo type, with a count header, then a grid of that type's
+// marks. Sections flow across pages. Honours cover/closing + cover-style.
+export async function renderByType(src, profile, theme, groups, opts = {}) {
+  const pdf = await PDFDocument.create();
+  pdf.setTitle(`${theme.name} — by type`);
+  pdf.setCreator("Logo Showcase · HaseebMadeIt");
+  const T = { ...theme, layout: { ...theme.layout, cover_style: opts.coverStyle || theme.layout.cover_style } };
+  const F = await makeFonts(pdf, T);
+  const pal = T.palette;
+  const all = groups.flatMap((g) => g.entries);
+  const prepared = await embedPreviews(pdf, src, profile, all, pal.paper);
+  const imgOf = new Map(prepared.map((p) => [p.entry.file, p.img]));
+  const ctx = { subtitle: opts.subtitle || "By logo type", n: all.length, clientName: "", dateStr: opts.dateStr || "" };
+  if (opts.includeCover !== false) drawCover(pdf.addPage([PAGE_W, PAGE_H]), T, F, ctx);
+
+  const cols = 3, gm = 16, gap = 8, secGap = 9;
+  const contentW = 210 - 2 * gm;
+  const tileW = (contentW - gap * (cols - 1)) / cols;
+  const imgH = tileW * 0.7, capH = 12, tileH = imgH + capH, rowGap = 9;
+  const nameFont = T.fonts.display === "Fraunces" ? F("body", "semibold") : F("display", "semibold");
+  const headFont = T.fonts.display === "Fraunces" ? F("body", "bold") : F("display", "bold");
+  const pages = [];
+  let page = null, y = 0;
+  const newPage = () => {
+    page = pdf.addPage([PAGE_W, PAGE_H]); page._F = F; pages.push(page);
+    text(page, gm, 14, T.name, headFont, 11, hex(pal.ink));
+    text(page, 210 - gm, 14, ctx.subtitle.toUpperCase(), F("body", "regular"), 8, hex(pal.accent), { align: "right", tracking: 1.4 });
+    hline(page, gm, 210 - gm, 17, hex(pal.accent_soft), 0.4);
+    y = 26;
+  };
+  newPage();
+  for (const g of groups) {
+    if (y + 20 > 283) newPage();
+    const shown = g.entries.length, total = g.total ?? shown;
+    text(page, gm, y + 4, g.type.replace(/-/g, " ").toUpperCase(), headFont, 12.5, hex(pal.ink), { tracking: 0.5 });
+    text(page, 210 - gm, y + 4, total === shown ? `${total} mark${total !== 1 ? "s" : ""}` : `${shown} of ${total}`,
+         F("body", "regular"), 8.5, hex(pal.muted), { align: "right" });
+    hline(page, gm, 210 - gm, y + 8, hex(pal.accent), 0.6);
+    y += 16;
+    let col = 0;
+    for (const e of g.entries) {
+      if (y + tileH > 283) { newPage(); col = 0; }
+      const x = gm + col * (tileW + gap);
+      rect(page, x, y, tileW, imgH, { fill: hex(pal.paper), stroke: hex(pal.accent_soft), line: 0.5 });
+      const img = imgOf.get(e.file);
+      if (img) { const f = fit(img, tileW, imgH, tileW * 0.13); page.drawImage(img, { x: (x + tileW / 2) * MM - (f.w * MM) / 2, y: yT(y + imgH / 2) - (f.h * MM) / 2, width: f.w * MM, height: f.h * MM }); }
+      text(page, x, y + imgH + 5, clip(e.name, nameFont, 9.5, tileW), nameFont, 9.5, hex(pal.ink));
+      if (++col >= cols) { col = 0; y += tileH + rowGap; }
+    }
+    if (col !== 0) y += tileH + rowGap;
+    y += secGap;
+  }
+  const total = pdf.getPageCount();
+  const startNo = opts.includeCover !== false ? 2 : 1;
   pages.forEach((pg, i) => text(pg, 105, 290, `${startNo + i} / ${total}`, F("body", "regular"), 8, hex(pal.muted), { align: "center" }));
   return pdf.save();
 }

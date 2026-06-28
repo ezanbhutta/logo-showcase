@@ -59,5 +59,78 @@
       "Pixelpush.gif",
       "Kernel.gif"
     ]
+  },
+  "tags": {
+    "Nimbus AI": {
+      "industries": [
+        "ai-data",
+        "technology-saas"
+      ],
+      "types": [
+        "abstract"
+      ]
+    },
+    "Quanta": {
+      "industries": [
+        "technology-saas",
+        "ai-data"
+      ],
+      "types": [
+        "combination"
+      ]
+    },
+    "Dataforge": {
+      "industries": [
+        "ai-data",
+        "technology-saas"
+      ],
+      "types": [
+        "abstract"
+      ]
+    },
+    "Vectorly": {
+      "industries": [
+        "technology-saas",
+        "marketing-agency"
+      ],
+      "types": [
+        "abstract"
+      ]
+    },
+    "Orbital": {
+      "industries": [
+        "technology-saas"
+      ],
+      "types": [
+        "pictorial"
+      ]
+    },
+    "Synthwave": {
+      "industries": [
+        "media-entertainment",
+        "technology-saas"
+      ],
+      "types": [
+        "combination"
+      ]
+    },
+    "Pixelpush": {
+      "industries": [
+        "marketing-agency",
+        "media-entertainment"
+      ],
+      "types": [
+        "pictorial"
+      ]
+    },
+    "Kernel": {
+      "industries": [
+        "technology-saas",
+        "ai-data"
+      ],
+      "types": [
+        "wordmark"
+      ]
+    }
   }
 }
