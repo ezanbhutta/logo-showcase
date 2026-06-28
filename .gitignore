@@ -4,6 +4,10 @@
 # Generated PDFs
 /out/
 
+# PyInstaller build output
+/dist/
+*.manifest
+
 # Python
 __pycache__/
 *.py[cod]

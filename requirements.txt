@@ -1,3 +1,5 @@
-# Logo Showcase engine dependencies
-WeasyPrint>=60        # HTML/CSS -> PDF rendering
-Pillow>=10            # image resize, optimize, hash-cache
+# Logo Showcase dependencies — all pure-Python or wheels, no system libraries,
+# so the app bundles into a single Windows .exe with zero extra installs.
+reportlab>=4.0       # HTML-free PDF rendering (cover + tile grid)
+Pillow>=10           # image resize, optimize, hash-cache
+Flask>=3.0           # local web UI

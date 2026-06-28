@@ -1,8 +1,8 @@
-"""Matched slice PDF — the default, client-facing output.
+"""Matched slice PDF — the default, client-facing output (ReportLab).
 
-A short profile-themed cover followed by a grid of N tiles, each tile a real
-screen-optimized preview plus ``name · Type``. Caps at the requested count and
-targets well under 2 MB. Everything visual comes from the theme.
+A short profile-themed cover followed by a grid of N tiles, each a real
+screen-optimized preview plus ``name · Type``. Everything visual comes from the
+theme; the grid paginates automatically when N exceeds one page.
 """
 
 from __future__ import annotations
@@ -11,193 +11,115 @@ from pathlib import Path
 
 from . import images
 from .curate import Query
-from .library import LogoEntry, Library
+from .library import Library, LogoEntry
 from .render_common import (
-    esc,
-    file_url,
-    font_face_css,
-    theme_vars,
+    PAGE_H,
+    PAGE_W,
+    Pen,
+    color,
+    font_name,
+    new_canvas,
+    truncate,
     type_label,
-    write_pdf,
 )
 from .theme import Theme
 
-PAGE_CSS = """
-@page {
-  size: A4;
-  margin: 16mm 14mm 16mm 14mm;
-  @bottom-center {
-    content: "" counter(page) " / " counter(pages);
-    font-family: var(--font-body);
-    font-size: 8pt;
-    color: var(--muted);
-  }
-}
-@page :first { margin: 0; }
-"""
+MM = 25.4  # page math below is in mm; A4 = 210 x 297
+PAGE_W_MM, PAGE_H_MM = 210.0, 297.0
 
 
-def _base_css(theme: Theme, cols: int) -> str:
-    gap = "8mm" if theme.layout.get("density") == "comfortable" else "5mm"
-    return f"""
-* {{ box-sizing: border-box; }}
-html, body {{ margin: 0; padding: 0; }}
-body {{
-  font-family: var(--font-body);
-  color: var(--ink);
-  background: var(--paper);
-  -weasy-hyphens: none;
-}}
+def _draw_cover(pen: Pen, theme: Theme, query: Query, n: int) -> None:
+    pal = theme.palette
+    pen.rect(0, 0, PAGE_W_MM, PAGE_H_MM, fill=color(pal["cover_bg"]))
 
-/* ---- Cover ---- */
-.cover {{
-  height: 297mm;
-  padding: 32mm 24mm;
-  background: var(--cover_bg);
-  color: var(--cover_fg);
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-}}
-.cover .kicker {{
-  font-family: var(--font-body);
-  text-transform: uppercase;
-  letter-spacing: .28em;
-  font-size: 10pt;
-  font-weight: 600;
-  color: var(--accent);
-}}
-.cover h1 {{
-  font-family: var(--font-display);
-  font-size: 40pt;
-  line-height: 1.04;
-  margin: 6mm 0 0 0;
-  font-weight: 700;
-}}
-.cover .sub {{
-  font-family: var(--font-serif);
-  font-size: 14pt;
-  margin-top: 5mm;
-  color: var(--cover_fg);
-  opacity: .82;
-}}
-.cover .meta {{
-  font-size: 9.5pt;
-  letter-spacing: .04em;
-  color: var(--cover_fg);
-  opacity: .65;
-}}
-.cover .rule {{ height: 2px; width: 28mm; background: var(--accent); margin: 8mm 0; }}
+    mx = 24.0
+    fg = color(pal["cover_fg"])
+    accent = color(pal["accent"])
 
-/* ---- Grid ---- */
-.sheet-head {{
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  border-bottom: 1px solid var(--accent_soft);
-  padding-bottom: 4mm;
-  margin-bottom: 7mm;
-}}
-.sheet-head .t {{ font-family: var(--font-display); font-size: 15pt; font-weight: 700; }}
-.sheet-head .c {{ font-size: 9pt; color: var(--muted); letter-spacing: .04em; }}
+    # Kicker (tracked uppercase) near upper third.
+    kicker = theme.labels.get("slice_kicker", "Selected work").upper()
+    pen.text(mx, 95, kicker, font_name(theme, "body", "semibold"), 10, accent, tracking=2.2)
+    # Accent rule.
+    pen.rect(mx, 100, 28, 0.8, fill=accent)
+    # Title (display, large). Shrink if very long.
+    title = theme.name
+    size = 40
+    while pen.c.stringWidth(title, font_name(theme, "display", "bold"), size) > (PAGE_W_MM - 2 * mx) * (72 / 25.4) and size > 20:
+        size -= 2
+    pen.text(mx, 120, title, font_name(theme, "display", "bold"), size, fg)
+    # Subtitle (serif), the query in title case.
+    pen.text(mx, 134, query.describe().title(), font_name(theme, "serif", "normal"), 15,
+             color(pal["cover_fg"], alpha=0.82))
 
-.grid {{
-  display: grid;
-  grid-template-columns: repeat({cols}, 1fr);
-  gap: {gap};
-}}
-.tile {{ break-inside: avoid; }}
-.tile .frame {{
-  border: 1px solid var(--accent_soft);
-  border-radius: var(--tile-radius);
-  background: var(--paper);
-  aspect-ratio: 4 / 3;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 7mm;
-  overflow: hidden;
-}}
-.tile .frame img {{ max-width: 100%; max-height: 100%; object-fit: contain; }}
-.tile .cap {{ margin-top: 3mm; }}
-.tile .cap .nm {{ font-family: var(--font-display); font-size: 10.5pt; font-weight: 600; }}
-.tile .cap .ty {{
-  font-size: 8pt;
-  color: var(--muted);
-  text-transform: uppercase;
-  letter-spacing: .12em;
-  margin-top: 1mm;
-}}
-"""
+    # Footer meta.
+    meta = f"{n} selected mark{'s' if n != 1 else ''} · curated slice"
+    pen.text(mx, PAGE_H_MM - 24, meta, font_name(theme, "body", "normal"), 9.5,
+             color(pal["cover_fg"], alpha=0.6))
 
 
-def _cover_html(theme: Theme, query: Query, n: int) -> str:
-    kicker = esc(theme.labels.get("slice_kicker", "Selected work"))
-    sub = esc(query.describe().title())
-    return f"""
-<section class="cover">
-  <div>
-    <div class="kicker">{kicker}</div>
-    <div class="rule"></div>
-    <h1>{esc(theme.name)}</h1>
-    <div class="sub">{sub}</div>
-  </div>
-  <div class="meta">{n} selected mark{'s' if n != 1 else ''} · curated slice</div>
-</section>
-"""
+def _draw_grid_pages(pen: Pen, theme: Theme, entries: list[LogoEntry],
+                     previews: list[Path], query: Query) -> None:
+    pal = theme.palette
+    cols = theme.tile_cols
+    mx = 14.0
+    top = 30.0
+    gap = 8.0 if theme.layout.get("density") == "comfortable" else 5.0
+
+    content_w = PAGE_W_MM - 2 * mx
+    tile_w = (content_w - gap * (cols - 1)) / cols
+    img_h = tile_w * 0.72            # 4:3-ish image frame
+    cap_h = 11.0
+    tile_h = img_h + cap_h
+    row_gap = gap + 2.0
+
+    def header():
+        pen.text(mx, top - 8, theme.name, font_name(theme, "display", "bold"), 15,
+                 color(pal["ink"]))
+        cap = f"{query.describe().title()} · {len(entries)} marks"
+        pen.text(PAGE_W_MM - mx, top - 8, cap, font_name(theme, "body", "normal"), 9,
+                 color(pal["muted"]), align="right")
+        pen.rect(mx, top - 4, content_w, 0.3, fill=color(pal["accent_soft"]))
+
+    header()
+    x_i = y = 0
+    row_y = top
+    col = 0
+    for entry, preview in zip(entries, previews):
+        if row_y + tile_h > PAGE_H_MM - 16:
+            pen.c.showPage()
+            header()
+            row_y = top
+            col = 0
+        x = mx + col * (tile_w + gap)
+        # Frame + image.
+        pen.rect(x, row_y, tile_w, img_h, fill=color(pal["paper"]),
+                 stroke=color(pal["accent_soft"]), line=0.5,
+                 radius=theme.layout.get("tile_radius_mm", 3))
+        pen.image_fit(preview, x, row_y, tile_w, img_h, pad=tile_w * 0.12)
+        # Caption.
+        nm_font = font_name(theme, "display", "semibold")
+        nm = truncate(pen.c, entry.name, nm_font, 10.5, tile_w)
+        pen.text(x, row_y + img_h + 5, nm, nm_font, 10.5, color(pal["ink"]))
+        pen.text(x, row_y + img_h + 9.2, type_label(entry.types).upper(),
+                 font_name(theme, "body", "normal"), 7, color(pal["muted"]), tracking=0.8)
+        col += 1
+        if col >= cols:
+            col = 0
+            row_y += tile_h + row_gap
 
 
-def _tile_html(entry: LogoEntry, preview_path: Path) -> str:
-    return f"""
-<div class="tile">
-  <div class="frame"><img src="{file_url(preview_path)}" alt="{esc(entry.name)}"></div>
-  <div class="cap">
-    <div class="nm">{esc(entry.name)}</div>
-    <div class="ty">{esc(type_label(entry.types))}</div>
-  </div>
-</div>
-"""
-
-
-def render_slice(
-    library: Library,
-    theme: Theme,
-    entries: list[LogoEntry],
-    query: Query,
-    out_path: Path,
-    build_dir: Path,
-) -> int:
+def render_slice(library: Library, theme: Theme, entries: list[LogoEntry],
+                 query: Query, out_path: Path, build_dir: Path) -> int:
     """Render the matched slice PDF. Returns the output size in bytes."""
     previews_dir = build_dir / library.profile / "previews"
     tile_bg = theme.palette.get("paper", "#FFFFFF")
+    previews = [images.preview_for(e.path, previews_dir, bg_hex=tile_bg) for e in entries]
 
-    tiles = []
-    for e in entries:
-        pv = images.preview_for(e.path, previews_dir, bg_hex=tile_bg)
-        tiles.append(_tile_html(e, pv))
-
-    cols = theme.tile_cols
-    head_title = esc(theme.name)
-    head_caption = esc(query.describe().title())
-
-    html_doc = f"""<!doctype html>
-<html><head><meta charset="utf-8"><style>
-{font_face_css(theme)}
-{theme_vars(theme)}
-{PAGE_CSS}
-{_base_css(theme, cols)}
-</style></head>
-<body>
-{_cover_html(theme, query, len(entries))}
-<section class="grid-page">
-  <div class="sheet-head">
-    <div class="t">{head_title}</div>
-    <div class="c">{head_caption} · {len(entries)} marks</div>
-  </div>
-  <div class="grid">
-    {''.join(tiles)}
-  </div>
-</section>
-</body></html>"""
-
-    return write_pdf(html_doc, out_path)
+    c = new_canvas(out_path)
+    pen = Pen(c)
+    _draw_cover(pen, theme, query, len(entries))
+    c.showPage()
+    _draw_grid_pages(pen, theme, entries, previews, query)
+    c.showPage()
+    c.save()
+    return out_path.stat().st_size

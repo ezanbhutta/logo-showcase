@@ -1,113 +1,180 @@
-"""Shared rendering helpers for the PDF modes.
+"""Shared rendering helpers built on ReportLab (pure Python, no system libs).
 
-Holds the bits both ``render_slice`` and ``render_range`` need: HTML escaping,
-font ``@font-face`` embedding from ``fonts/``, theme→CSS-variable mapping, and
-the WeasyPrint call. Keeping these here means the two renderers differ only in
-layout, never in how the theme is wired up.
+This replaced the original WeasyPrint renderer so the whole app can be bundled
+into a single Windows executable with zero extra installs. The two PDF modes
+(``render_slice``, ``render_range``) share font registration, colour parsing,
+and image-fitting from here, so they differ only in layout.
+
+ReportLab's canvas origin is bottom-left; the ``Pen`` wrapper lets the
+renderers work in familiar top-left millimetre coordinates instead.
 """
 
 from __future__ import annotations
 
-import html
+from functools import lru_cache
 from pathlib import Path
 
-from weasyprint import HTML
+from reportlab.lib.colors import Color, HexColor
+from reportlab.lib.pagesizes import A4
+from reportlab.lib.utils import ImageReader
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
+from reportlab.pdfgen.canvas import Canvas
 
+from .resources import base_dir
 from .theme import Theme
 
-REPO_ROOT = Path(__file__).resolve().parent.parent
+REPO_ROOT = base_dir()
 FONTS_DIR = REPO_ROOT / "fonts"
 
-# Map a font family name to candidate files in fonts/. We embed whatever is
-# present; a family with no file simply falls back to the generic stack below.
-_GENERIC = {
-    "Archivo": "sans-serif",
-    "Spectral": "serif",
-}
+MM = 72.0 / 25.4          # points per millimetre
+PAGE_W, PAGE_H = A4       # points
 
-_WEIGHT_HINTS = {
-    "regular": 400,
-    "medium": 500,
-    "semibold": 600,
-    "bold": 700,
-    "black": 900,
-    "light": 300,
-}
+# Fallback families if a theme references a font we don't ship.
+_FALLBACK = {"normal": "Helvetica", "bold": "Helvetica-Bold", "semibold": "Helvetica-Bold"}
 
 
-def esc(text: str) -> str:
-    return html.escape(str(text), quote=True)
+@lru_cache(maxsize=1)
+def register_fonts() -> set[str]:
+    """Register every TTF in ``fonts/`` with ReportLab. Returns family names.
 
-
-def file_url(path: Path) -> str:
-    return path.resolve().as_uri()
-
-
-def _weight_for(filename: str) -> str:
-    """CSS font-weight value for a font file.
-
-    A weight word in the name maps to that weight. No hint -> a full
-    ``100 900`` range, which lets a single variable font (e.g. Archivo) answer
-    both regular and bold requests instead of being synthetic-bolded.
+    Files are grouped by the part before the first ``-`` (``Archivo-Bold`` ->
+    family ``Archivo``). Each family is registered with normal/semibold/bold
+    faces, falling back to the regular face when a weight file is absent.
     """
-    low = filename.lower()
-    for hint, weight in _WEIGHT_HINTS.items():
-        if hint in low:
-            return str(weight)
-    return "100 900"
+    families: dict[str, dict[str, Path]] = {}
+    for ttf in sorted(FONTS_DIR.glob("*.ttf")):
+        fam, _, variant = ttf.stem.partition("-")
+        families.setdefault(fam, {})[(variant or "Regular").lower()] = ttf
+
+    registered: set[str] = set()
+    for fam, variants in families.items():
+        regular = variants.get("regular") or next(iter(variants.values()))
+        bold = variants.get("bold", regular)
+        semibold = variants.get("semibold", bold)
+        pdfmetrics.registerFont(TTFont(fam, str(regular)))
+        pdfmetrics.registerFont(TTFont(f"{fam}-Bold", str(bold)))
+        pdfmetrics.registerFont(TTFont(f"{fam}-SemiBold", str(semibold)))
+        pdfmetrics.registerFontFamily(fam, normal=fam, bold=f"{fam}-Bold")
+        registered.add(fam)
+    return registered
 
 
-def font_face_css(theme: Theme) -> str:
-    """Build @font-face rules for every theme font that has files in fonts/.
+def font_name(theme: Theme, role: str, weight: str = "normal") -> str:
+    """Resolve a (theme role, weight) to a registered ReportLab font name."""
+    families = register_fonts()
+    fam = theme.fonts.get(role) or "Archivo"
+    if fam not in families:
+        return _FALLBACK.get(weight, "Helvetica")
+    if weight == "bold":
+        return f"{fam}-Bold"
+    if weight == "semibold":
+        return f"{fam}-SemiBold"
+    return fam
 
-    Looks for ``fonts/<Family>*.ttf|otf|woff2``. If none exist for a family the
-    renderer relies on the generic fallback, so the system still produces a PDF
-    without bundled fonts (just not the bespoke face).
-    """
-    rules: list[str] = []
-    for family in sorted(theme.font_families()):
-        matches = sorted(
-            p
-            for ext in ("ttf", "otf", "woff2", "woff")
-            for p in FONTS_DIR.glob(f"{family}*.{ext}")
+
+def color(hex_str: str, alpha: float = 1.0) -> Color:
+    """Parse ``#RRGGBB`` (alpha blended toward white when < 1)."""
+    c = HexColor(hex_str)
+    if alpha >= 1.0:
+        return c
+    # Approximate opacity over a light surface by blending toward white.
+    return Color(
+        c.red + (1 - c.red) * (1 - alpha),
+        c.green + (1 - c.green) * (1 - alpha),
+        c.blue + (1 - c.blue) * (1 - alpha),
+    )
+
+
+class Pen:
+    """Thin wrapper over a ReportLab canvas using top-left mm coordinates."""
+
+    def __init__(self, canvas: Canvas):
+        self.c = canvas
+
+    # --- coordinate helpers (input mm from top-left) ---
+    def _y(self, y_mm: float) -> float:
+        return PAGE_H - y_mm * MM
+
+    def rect(self, x, y, w, h, fill=None, stroke=None, line=0.3, radius=0.0):
+        c = self.c
+        if fill is not None:
+            c.setFillColor(fill)
+        if stroke is not None:
+            c.setStrokeColor(stroke)
+            c.setLineWidth(line)
+        x_pt, w_pt, h_pt = x * MM, w * MM, h * MM
+        y_pt = self._y(y + h)  # bottom edge
+        do_fill = 1 if fill is not None else 0
+        do_stroke = 1 if stroke is not None else 0
+        if radius > 0:
+            c.roundRect(x_pt, y_pt, w_pt, h_pt, radius * MM, stroke=do_stroke, fill=do_fill)
+        else:
+            c.rect(x_pt, y_pt, w_pt, h_pt, stroke=do_stroke, fill=do_fill)
+
+    def text(self, x, y, s, font, size, fill, align="left", tracking=0.0):
+        """Draw a single line. ``y`` is the text baseline from the top.
+
+        ``tracking`` (extra letter spacing, in points) is applied via a text
+        object since the canvas has no char-space setter.
+        """
+        c = self.c
+        x_pt, y_pt = x * MM, self._y(y)
+        if not tracking:
+            c.setFillColor(fill)
+            c.setFont(font, size)
+            if align == "center":
+                c.drawCentredString(x_pt, y_pt, s)
+            elif align == "right":
+                c.drawRightString(x_pt, y_pt, s)
+            else:
+                c.drawString(x_pt, y_pt, s)
+            return
+        w = pdfmetrics.stringWidth(s, font, size) + tracking * max(len(s) - 1, 0)
+        if align == "center":
+            start = x_pt - w / 2
+        elif align == "right":
+            start = x_pt - w
+        else:
+            start = x_pt
+        t = c.beginText(start, y_pt)
+        t.setFont(font, size)
+        t.setFillColor(fill)
+        t.setCharSpace(tracking)
+        t.textOut(s)
+        c.drawText(t)
+
+    def image_fit(self, path, x, y, w, h, pad=0.0):
+        """Draw an image contained within the (x,y,w,h) mm box, centred."""
+        img = ImageReader(str(path))
+        iw, ih = img.getSize()
+        bw, bh = (w - 2 * pad), (h - 2 * pad)
+        scale = min(bw / iw, bh / ih)
+        dw, dh = iw * scale, ih * scale
+        cx, cy = x + w / 2, y + h / 2
+        x_pt = (cx - dw / 2) * MM
+        y_pt = self._y(cy + dh / 2)
+        self.c.drawImage(
+            img, x_pt, y_pt, dw * MM, dh * MM, mask="auto", preserveAspectRatio=True
         )
-        for fp in matches:
-            weight = _weight_for(fp.name)
-            style = "italic" if "italic" in fp.name.lower() else "normal"
-            rules.append(
-                "@font-face{{font-family:'{fam}';font-style:{style};"
-                "font-weight:{w};src:url('{url}');}}".format(
-                    fam=family, style=style, w=weight, url=file_url(fp)
-                )
-            )
-    return "\n".join(rules)
 
 
-def font_stack(theme: Theme, role: str) -> str:
-    """CSS font-family value for a theme role (display/body/serif)."""
-    fam = theme.fonts.get(role, "")
-    generic = _GENERIC.get(fam, "sans-serif" if role != "serif" else "serif")
-    return f"'{fam}', {generic}" if fam else generic
-
-
-def theme_vars(theme: Theme) -> str:
-    """Theme palette + fonts as CSS custom properties."""
-    p = theme.palette
-    lines = [f"--{k}:{v};" for k, v in p.items()]
-    lines.append(f"--font-display:{font_stack(theme, 'display')};")
-    lines.append(f"--font-body:{font_stack(theme, 'body')};")
-    lines.append(f"--font-serif:{font_stack(theme, 'serif')};")
-    lines.append(f"--tile-radius:{theme.layout.get('tile_radius_mm', 3)}mm;")
-    return ":root{" + "".join(lines) + "}"
-
-
-def write_pdf(html_str: str, out_path: Path) -> int:
-    """Render ``html_str`` to ``out_path`` and return the file size in bytes."""
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-    HTML(string=html_str, base_url=str(REPO_ROOT)).write_pdf(str(out_path))
-    return out_path.stat().st_size
+def truncate(canvas: Canvas, s: str, font: str, size: float, max_mm: float) -> str:
+    """Trim ``s`` with an ellipsis so it fits within ``max_mm`` millimetres."""
+    max_pt = max_mm * MM
+    if pdfmetrics.stringWidth(s, font, size) <= max_pt:
+        return s
+    ell = "…"
+    while s and pdfmetrics.stringWidth(s + ell, font, size) > max_pt:
+        s = s[:-1]
+    return s + ell
 
 
 def type_label(types: list[str]) -> str:
-    """Human label for a tile, e.g. ['abstract'] -> 'Abstract'."""
     return ", ".join(t.replace("-", " ").title() for t in types[:2])
+
+
+def new_canvas(out_path: Path) -> Canvas:
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    register_fonts()
+    return Canvas(str(out_path), pagesize=A4)

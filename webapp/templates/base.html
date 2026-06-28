@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Logo Showcase{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <header class="appbar">
+    <a class="logo" href="{{ url_for('index') }}">
+      <span class="dot"></span> Logo Showcase
+    </a>
+    <nav>
+      <a href="{{ url_for('index') }}">Make a PDF</a>
+      <a href="{{ url_for('gallery_pick') }}">Browse gallery</a>
+      <a href="{{ url_for('settings') }}">Settings</a>
+    </nav>
+  </header>
+
+  {% if using_demo is defined and using_demo %}
+  <div class="banner">
+    You're using the built-in <strong>demo logos</strong>. Point the app at your
+    Google Drive folder on the <a href="{{ url_for('settings') }}">Settings</a> page.
+  </div>
+  {% endif %}
+
+  <main class="wrap">
+    {% block content %}{% endblock %}
+  </main>
+
+  <footer class="foot">Runs locally on your computer · PDFs save to your chosen folder</footer>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

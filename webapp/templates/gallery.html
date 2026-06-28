@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}Gallery · Logo Showcase{% endblock %}
+{% block content %}
+<div class="gallery-head">
+  <h1>Browse gallery</h1>
+  <label class="field inline">
+    <span>Profile</span>
+    <select id="profile-switch">
+      {% for p in profiles %}
+      <option value="{{ p }}" {% if p == profile %}selected{% endif %}>{{ p }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <input id="search" type="search" placeholder="Search by name…" autocomplete="off">
+</div>
+
+<div class="gallery-layout">
+  <aside class="filters">
+    <section><h2>Industry</h2><div id="industry-filters" class="chips"></div></section>
+    <section><h2>Type</h2><div id="type-filters" class="chips"></div></section>
+    <section>
+      <h2>Match</h2>
+      <div class="chips">
+        <button class="chip mode active" data-mode="any" type="button">Any</button>
+        <button class="chip mode" data-mode="all" type="button">All</button>
+      </div>
+    </section>
+    <button id="clear" class="linkbtn" type="button">Clear filters</button>
+  </aside>
+
+  <div>
+    <div id="grid" class="cardgrid"></div>
+    <p id="empty" class="hint" hidden>No logos match these filters.</p>
+  </div>
+</div>
+
+<form id="selform" class="selbar" method="post" action="{{ url_for('generate') }}" hidden>
+  <input type="hidden" name="profile" id="sel-profile" value="{{ profile }}">
+  <input type="hidden" name="mode" value="slice">
+  <input type="hidden" name="count" value="60">
+  <div id="sel-inputs"></div>
+  <span id="sel-count">0 selected</span>
+  <div class="selbar-actions">
+    <button type="button" id="clear-sel" class="ghost">Clear</button>
+    <button type="submit" class="btn primary">Make PDF from selection</button>
+  </div>
+</form>
+
+<script>window.__PROFILE__ = {{ profile|tojson }};</script>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='gallery.js') }}"></script>
+{% endblock %}
