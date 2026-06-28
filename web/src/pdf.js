@@ -30,16 +30,20 @@ async function buf(file) {
 }
 async function makeFonts(pdf, theme) {
   pdf.registerFontkit(window.fontkit);
-  const fams = new Set([theme.fonts.display, theme.fonts.body, theme.fonts.serif]);
+  const fams = [...new Set([theme.fonts.display, theme.fonts.body, theme.fonts.serif])];
   const emb = {};
-  for (const fam of fams) {
+  // Embed every needed family/weight in parallel, subsetted so only the glyphs
+  // actually used ship in the PDF — far smaller files, much faster downloads.
+  await Promise.all(fams.map(async (fam) => {
     const f = FONT_FILES[fam] || FONT_FILES.Archivo;
-    emb[fam] = {
-      regular: await pdf.embedFont(await buf(f.regular)),
-      semibold: await pdf.embedFont(await buf(f.semibold || f.regular)),
-      bold: await pdf.embedFont(await buf(f.bold || f.regular)),
-    };
-  }
+    const [rb, sb, bb] = await Promise.all([buf(f.regular), buf(f.semibold || f.regular), buf(f.bold || f.regular)]);
+    const [regular, semibold, bold] = await Promise.all([
+      pdf.embedFont(rb, { subset: true }),
+      pdf.embedFont(sb, { subset: true }),
+      pdf.embedFont(bb, { subset: true }),
+    ]);
+    emb[fam] = { regular, semibold, bold };
+  }));
   return (role, weight = "regular") => {
     const fam = theme.fonts[role] || "Archivo";
     return (emb[fam] || emb[theme.fonts.body])[weight];
@@ -98,12 +102,15 @@ function fitTitle(s, font, startSize, maxMM, minSize = 22) {
 }
 
 async function embedPreviews(pdf, src, profile, entries, bgHex) {
-  const out = [];
-  for (const e of entries) {
+  // Fetch + downscale + JPEG-encode every logo in parallel (the slow part),
+  // then embed sequentially. Previews are cached, so repeat exports are instant.
+  const prepared = await Promise.all(entries.map(async (e) => {
     const blob = await src.getBlob(profile, `logos/${e.file}`);
     const pv = await preview(blob, `${profile}/${e.file}`, bgHex);
-    out.push({ entry: e, img: await pdf.embedJpg(pv.bytes) });
-  }
+    return { entry: e, bytes: pv.bytes };
+  }));
+  const out = [];
+  for (const p of prepared) out.push({ entry: p.entry, img: await pdf.embedJpg(p.bytes) });
   return out;
 }
 
