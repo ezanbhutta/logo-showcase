@@ -55,6 +55,7 @@ function toast(msg, kind = "ok") {
 // ====== source / detection ==================================================
 async function onSourceChanged() {
   state.srcGen++; state.assetsCache.clear(); clearBlobs();
+  browseInit = false; browseOpen.clear();
   const prof = state.source.profile();
   state.profileId = prof.id; state.theme = prof.theme || THEMES.eikon;
   state.profileName = state.theme.name || prof.id;
@@ -81,6 +82,7 @@ async function useFolder(h) { state.source = new FsPortfolio(h); state.isDemo = 
 let currentView = "logos", currentType = null;
 function viewExists(v) {
   if (v === "logos" || v === "settings") return true;
+  if (v === "browse") return state.types.length > 0;
   if (v.startsWith("assets:")) return state.types.some((t) => t.key === v.slice(7));
   return false;
 }
@@ -93,6 +95,7 @@ function buildTabs() {
     tabs.appendChild(b);
   };
   if (state.types.some((t) => t.key === "logos")) add("Logos", "logos");
+  if (state.types.length) add("Files", "browse");
   state.types.filter((t) => t.key !== "logos").forEach((t) => add(t.label, `assets:${t.key}`));
   add("Settings", "settings");
 }
@@ -102,8 +105,10 @@ function switchView(view) {
   const isAssets = view.startsWith("assets:");
   $("#view-logos").hidden = view !== "logos";
   $("#view-settings").hidden = view !== "settings";
+  $("#view-browse").hidden = view !== "browse";
   $("#view-assets").hidden = !isAssets;
   if (isAssets) { currentType = view.slice(7); renderAssets(currentType); }
+  if (view === "browse") renderBrowse();
 }
 
 // ====== Logos showcase ======================================================
@@ -257,6 +262,61 @@ async function renderAssets(typeKey) {
     grid.appendChild(card);
   }
 }
+// ====== Files tree (folder/subfolder browse) ================================
+const browseOpen = new Set();
+let browseInit = false;
+async function loadAssets(typeKey) {
+  let a = state.assetsCache.get(typeKey);
+  if (!a) { a = await state.source.assets(typeKey).catch(() => []); state.assetsCache.set(typeKey, a); }
+  return a;
+}
+async function renderBrowse() {
+  const tree = $("#browse-tree");
+  const q = ($("#browse-search").value || "").trim().toLowerCase();
+  if (!browseInit) { state.types.forEach((t) => browseOpen.add(t.key)); browseInit = true; }
+  tree.innerHTML = "<div class='muted' style='padding:1rem'>Loading…</div>";
+  const data = [];
+  for (const t of state.types) {
+    const assets = await loadAssets(t.key);
+    const visible = assets.filter((a) => !q || a.brand.toLowerCase().includes(q) || a.file.toLowerCase().includes(q));
+    data.push({ t, total: assets.length, visible });
+  }
+  tree.innerHTML = "";
+  const totalFiles = data.reduce((n, d) => n + d.total, 0);
+  const matchFiles = data.reduce((n, d) => n + d.visible.length, 0);
+  const emptyT = $("#browse-empty-t");
+  $("#browse-empty").hidden = !(totalFiles === 0 || matchFiles === 0);
+  if (totalFiles === 0) { emptyT.textContent = "No files in this portfolio yet"; return; }
+  if (matchFiles === 0) { emptyT.textContent = "No files match your search"; return; }
+  for (const { t, total, visible } of data) {
+    if (q && !visible.length) continue;                  // hide non-matching folders while searching
+    const open = q ? true : browseOpen.has(t.key);
+    const node = document.createElement("div");
+    node.className = "tnode" + (open ? " open" : "");
+    const count = q ? `${visible.length} of ${total}` : `${total}`;
+    node.innerHTML = `<button class="tfhead" type="button" aria-expanded="${open}">
+        <span class="tchev">▸</span><span class="tfico">📁</span>
+        <span class="tflabel">${esc(t.label)}</span><span class="tcount">${esc(count)}</span></button>
+      <div class="tfiles"></div>`;
+    const filesBox = node.querySelector(".tfiles");
+    for (const a of visible) {
+      const badge = a.kind === "pdf" ? "PDF" : a.kind === "video" ? "VID" : a.ext.toUpperCase();
+      const row = document.createElement("button");
+      row.className = "trow"; row.type = "button";
+      row.innerHTML = `<span class="tkind ${a.kind}">${esc(badge)}</span><span class="tname">${esc(a.brand)}</span>` +
+        `<span class="tfile">${esc(a.file)}</span><span class="tview">View ›</span>`;
+      row.addEventListener("click", () => openAsset(t.key, a));
+      filesBox.appendChild(row);
+    }
+    if (!q) node.querySelector(".tfhead").addEventListener("click", () => {
+      const o = browseOpen.has(t.key);
+      if (o) browseOpen.delete(t.key); else browseOpen.add(t.key);
+      node.classList.toggle("open", !o); node.querySelector(".tfhead").setAttribute("aria-expanded", String(!o));
+    });
+    tree.appendChild(node);
+  }
+}
+
 async function openAsset(typeKey, a) {
   const url = await blobUrl(typeKey, a.file);
   $("#preview-title").textContent = a.brand;
@@ -319,6 +379,7 @@ let PALETTE = [], palIdx = 0;
 function buildPalette() {
   PALETTE = [
     { label: "Logos showcase", run: () => switchView("logos") },
+    ...(state.types.length ? [{ label: "Files · browse folders", run: () => switchView("browse") }] : []),
     ...state.types.filter((t) => t.key !== "logos").map((t) => ({ label: `Open · ${t.label}`, run: () => switchView(`assets:${t.key}`) })),
     { label: "Settings", run: () => switchView("settings") },
     { label: "Output · Slice", run: () => { setSeg($("#opt-mode"), "slice"); mk.mode = "slice"; syncMode(); scheduleRender(60); } },
@@ -369,8 +430,9 @@ function wire() {
   $("#filter-type").addEventListener("change", (e) => { filters.type = e.target.value; state.picked = []; renderPicker(); scheduleRender(120); });
   $$(".cta").forEach((c) => c.addEventListener("mousemove", (e) => { const r = c.getBoundingClientRect(); c.style.setProperty("--x", `${e.clientX - r.left}px`); c.style.setProperty("--y", `${e.clientY - r.top}px`); }));
 
-  // assets
+  // assets + files tree
   $("#assets-search").addEventListener("input", () => currentType && renderAssets(currentType));
+  $("#browse-search").addEventListener("input", renderBrowse);
 
   // folder / theme / palette
   $("#connect-folder").addEventListener("click", connectFolder);
@@ -401,7 +463,11 @@ function onKey(e) {
   if (meta && e.key === "Enter") { e.preventDefault(); return downloadLive(); }
   if (meta && e.key.toLowerCase() === "d") { e.preventDefault(); return applyTheme(document.documentElement.dataset.theme === "dark" ? "light" : "dark"); }
   if (typing) return;
-  if (e.key === "/") { const s = currentView.startsWith("assets:") ? $("#assets-search") : $("#logos-search"); if (s) { e.preventDefault(); s.focus(); } }
+  if (e.key === "/") {
+    const s = currentView === "browse" ? $("#browse-search")
+      : currentView.startsWith("assets:") ? $("#assets-search") : $("#logos-search");
+    if (s) { e.preventDefault(); s.focus(); }
+  }
 }
 
 async function init() {

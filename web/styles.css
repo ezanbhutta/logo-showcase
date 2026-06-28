@@ -763,6 +763,36 @@ input:focus-visible, select:focus-visible{
 /* ---- Asset card "view" affordance (no download) ---- */
 .aview{ font-size:.78rem; color:var(--accent); font-weight:600; white-space:nowrap; }
 
+/* ---- Files tree (folder/subfolder browse) ---- */
+.tree{ display:flex; flex-direction:column; gap:.55rem; }
+.tnode{ background:var(--paper); border:1px solid var(--line); border-radius:var(--r); overflow:hidden;
+  box-shadow:var(--elev-1); }
+.tfhead{ display:flex; align-items:center; gap:.6rem; width:100%; border:none; background:none; cursor:pointer;
+  font:inherit; padding:.8rem 1rem; color:var(--ink); transition:background var(--t-base); }
+.tfhead:hover{ background:var(--raised); }
+.tchev{ font-size:.7rem; color:var(--dim); transition:transform var(--t-base); }
+.tnode.open .tchev{ transform:rotate(90deg); }
+.tfico{ font-size:1.05rem; }
+.tflabel{ font-family:var(--font-display); font-weight:600; font-size:1rem; }
+.tcount{ margin-left:auto; font-family:var(--font-mono); font-size:.72rem; color:var(--muted);
+  background:var(--bg); border:1px solid var(--line); border-radius:999px; padding:.12rem .55rem; }
+.tfiles{ display:none; flex-direction:column; border-top:1px solid var(--line-2); }
+.tnode.open .tfiles{ display:flex; }
+.trow{ display:flex; align-items:center; gap:.7rem; width:100%; border:none; background:none; cursor:pointer;
+  font:inherit; text-align:left; padding:.6rem 1rem .6rem 2.6rem; color:var(--ink);
+  border-top:1px solid var(--line-2); transition:background var(--t-fast); }
+.tfiles .trow:first-child{ border-top:none; }
+.trow:hover{ background:var(--accent-soft); }
+.tkind{ flex:0 0 auto; font-family:var(--font-mono); font-size:.6rem; font-weight:600; letter-spacing:.04em;
+  width:42px; text-align:center; padding:.18rem 0; border-radius:5px; color:var(--accent-2); background:var(--accent-soft); }
+.tkind.pdf{ color:#C0392B; background:rgba(192,57,43,.1); }
+.tkind.video{ color:#6C5CE7; background:rgba(108,92,231,.12); }
+.tname{ font-weight:600; font-size:.9rem; white-space:nowrap; }
+.tfile{ font-family:var(--font-mono); font-size:.74rem; color:var(--muted); white-space:nowrap;
+  overflow:hidden; text-overflow:ellipsis; flex:1; }
+.tview{ flex:0 0 auto; font-size:.76rem; color:var(--accent); font-weight:600; opacity:0; transition:opacity var(--t-fast); }
+.trow:hover .tview{ opacity:1; }
+
 /* ---- Visual guide ---- */
 .vguide h2{ margin-bottom:.4rem; }
 .vfolder{ display:flex; align-items:center; gap:.6rem; background:var(--raised); border:1px dashed var(--line);
