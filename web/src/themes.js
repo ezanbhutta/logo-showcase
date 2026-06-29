@@ -17,9 +17,9 @@ export const THEMES = {
       "cover_fg": "#F4EFE3"
     },
     "fonts": {
-      "display": "Fraunces",
+      "display": "Cormorant",
       "body": "DMSans",
-      "serif": "Fraunces"
+      "serif": "Cormorant"
     },
     "layout": {
       "cover_style": "serif",
@@ -104,9 +104,9 @@ export const THEMES = {
       "cover_fg": "#FBF7F0"
     },
     "fonts": {
-      "display": "Fraunces",
+      "display": "Cormorant",
       "body": "DMSans",
-      "serif": "Fraunces"
+      "serif": "Cormorant"
     },
     "layout": {
       "cover_style": "serif",
