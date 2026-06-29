@@ -141,8 +141,10 @@ async function embedPreviews(pdf, src, profile, entries, bgHex) {
 // Optional per-studio logo, dropped at  web/brand/<id>.(svg|png|jpg).  Rasterised
 // with transparency so it sits cleanly on the (often dark/coloured) cover.
 const _markCache = new Map();
-// Studios with a logo vendored at web/brand/<id>.*  (add ids as logos arrive).
-const BRANDED = new Set(["dygram", "storm", "xstudioz"]);
+// Studios whose ORIGINAL logo file is vendored at web/brand/<id>.(svg|png|jpg).
+// Add an id here only once its real, unaltered file is dropped in — the cover
+// then renders it verbatim. No tracing / recreation.
+const BRANDED = new Set([]);
 async function loadBrandmark(pdf, theme) {
   const id = theme.id;
   if (!id || !BRANDED.has(id)) return null;
