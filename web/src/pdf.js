@@ -466,19 +466,13 @@ function drawSplit(pdf, theme, F, tiles, subtitle, ctx) {
   return pages;
 }
 
+// Alternate engines remain available for explicit opt-in, but every studio's
+// deck uses the fixed 2 × 3 grid by default — the layout never changes per
+// profile (only palette / type / cover do).
 const DECK_STYLES = { showcase: drawGrid, hero: drawHero, editorial: drawEditorial, contact: drawContact, duo: drawLookbook, split: drawSplit };
-// Which structure each baked studio uses (distinct architectures across the 10).
-const GRID_STYLE = {
-  "abdul-haseeb": "hero", "wedesign": "hero",
-  "alee-studioz": "editorial", "dygram": "editorial",
-  "bic": "contact", "grid": "contact",
-  "carpicon": "duo", "storm": "duo",
-  "xstudioz": "split",
-  "eikon": "showcase",
-};
 function drawContent(pdf, T, F, tiles, subtitle, ctx, opts = {}) {
   if (opts.layout === "lookbook") return drawLookbook(pdf, T, F, tiles, subtitle, ctx);
-  const style = opts.gridStyle || T.layout.grid_style || GRID_STYLE[T.id] || "showcase";
+  const style = opts.gridStyle;                  // only an explicit override deviates
   return (DECK_STYLES[style] || drawGrid)(pdf, T, F, tiles, subtitle, ctx);
 }
 
