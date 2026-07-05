@@ -1,0 +1,28 @@
+{
+  "name": "logo-showcase",
+  "version": "1.0.0",
+  "description": "A small **desktop app** that turns a shared, tagged logo library into polished, **client-matched PDFs** — without anyone touching a terminal.",
+  "main": "main.js",
+  "directories": {
+    "test": "tests"
+  },
+  "scripts": {
+    "start": "electron .",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ezanbhutta/logo-showcase.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/ezanbhutta/logo-showcase/issues"
+  },
+  "homepage": "https://github.com/ezanbhutta/logo-showcase#readme",
+  "devDependencies": {
+    "electron": "^43.0.0"
+  }
+}
