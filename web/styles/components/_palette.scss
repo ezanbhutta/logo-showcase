@@ -1,0 +1,68 @@
+// ============================================================================
+// PALETTE — Command palette overlay
+// ============================================================================
+@use "../tokens" as *;
+
+.palette {
+  .modal-bg {
+    mask-image: radial-gradient(circle at center top, rgba(0,0,0,0.2) 0%, rgba(0,0,0,1) 80%);
+    -webkit-mask-image: radial-gradient(circle at center top, rgba(0,0,0,0.2) 0%, rgba(0,0,0,1) 80%);
+  }
+
+  .palette-card {
+    position: relative;
+    width: 600px;
+    max-width: 90vw;
+    background: rgba($white, 0.95);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border: 1px solid $border-color;
+    border-radius: $r-panel;
+    box-shadow: 0 24px 80px rgba($deep-ink, 0.12);
+    overflow: hidden;
+    animation: popIn 0.3s $spring;
+    margin-bottom: 20vh;
+  }
+}
+
+#palette-input {
+  width: 100%;
+  height: 64px;
+  border: none;
+  border-bottom: 1px solid $border-color;
+  background: transparent;
+  padding: 0 32px;
+  font-size: 20px;
+  color: $deep-ink;
+  font-family: $font-serif;
+
+  &:focus { outline: none; }
+}
+
+.palette-list {
+  max-height: 400px;
+  overflow-y: auto;
+  padding: 16px;
+}
+
+.palette-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 24px;
+  font-size: 14px;
+  font-weight: 500;
+  border-radius: $r-pill;
+  cursor: pointer;
+  transition: background 0.2s;
+
+  &.active, &:hover {
+    background: $hi-yellow;
+    color: $deep-ink;
+  }
+}
+
+.pk {
+  font-size: 10px;
+  opacity: 0.6;
+}

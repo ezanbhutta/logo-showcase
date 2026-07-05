@@ -1,0 +1,69 @@
+// ============================================================================
+// SETTINGS — Setup modal, Variable mapping
+// ============================================================================
+@use "../tokens" as *;
+
+.setup-modal {
+  .modal-card { width: 640px; height: 600px; }
+  .modal-body { padding: 32px; overflow-y: auto; }
+}
+
+.vcard {
+  background: $white;
+  border: 1px solid $border-color;
+  border-radius: 16px;
+  padding: 24px;
+  margin-bottom: 24px;
+
+  h3 {
+    font-size: 16px;
+    font-weight: 600;
+    margin-bottom: 8px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+
+    span.badge {
+      font-size: 10px;
+      padding: 4px 8px;
+      background: rgba($hi-yellow, 0.3);
+      color: $deep-ink;
+      border-radius: $r-pill;
+    }
+  }
+
+  p { font-size: 12px; color: $slate; margin-bottom: 16px; }
+}
+
+.vfolder {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: $canvas;
+  border: 1px dashed $border-color;
+  border-radius: 8px;
+
+  &.ok {
+    border-style: solid;
+    border-color: #59e25d;
+    background: rgba(89, 226, 93, 0.1);
+  }
+}
+
+.vrule {
+  margin-bottom: 32px;
+}
+
+.vlegend {
+  display: grid;
+  grid-template-columns: 100px 1fr;
+  gap: 8px 16px;
+  font-size: 12px;
+  background: $canvas;
+  padding: 16px;
+  border-radius: 12px;
+
+  div:nth-child(odd) { font-family: monospace; color: $deep-ink; }
+  div:nth-child(even) { color: $slate; }
+}

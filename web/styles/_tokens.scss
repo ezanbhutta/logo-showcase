@@ -1,0 +1,73 @@
+// ============================================================================
+// TOKENS — Ditto Sunlit Wildflower Design System
+// SCSS variables + Tailwind v4 @theme extension
+// ============================================================================
+
+// --- SCSS Variables (for use in mixins, functions, and component partials) ---
+
+// Ditto Core
+$deep-ink: #130e30;
+$hi-yellow: #ffe228;
+$slate: #5f5c6e;
+$canvas: #f9fbf2;
+$soft-meadow: #eff2e5;
+$charcoal: #222222;
+
+// Aboard Pastels
+$blush: #fbcfe8;
+$lavender: #e6dafd;
+$mint: #b6edee;
+$powder: #afe4ff;
+$butter: #ffe77a;
+
+// Functional
+$white: #ffffff;
+$border-color: rgba(19, 14, 48, 0.08);
+$border-lit: rgba(19, 14, 48, 0.15);
+$faint: rgba(19, 14, 48, 0.1);
+
+// Typography
+$font-serif: 'DM Serif Display', ui-serif, Georgia, Cambria, serif;
+$font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+
+// Geometry
+$r-panel: 24px;
+$r-pill: 1440px;
+
+// Easing
+$spring: cubic-bezier(0.175, 0.885, 0.32, 1.2);
+$snap: cubic-bezier(0.2, 0.8, 0.2, 1);
+
+// Pastel list (for SCSS @each loops)
+$pastels: (
+  "meadow": $soft-meadow,
+  "blush": $blush,
+  "lavender": $lavender,
+  "mint": $mint,
+  "powder": $powder,
+);
+
+// --- Tailwind v4 @theme (makes tokens available as tw utilities) ---
+
+@theme {
+  --color-deep-ink: #{$deep-ink};
+  --color-hi-yellow: #{$hi-yellow};
+  --color-slate: #{$slate};
+  --color-canvas: #{$canvas};
+  --color-soft-meadow: #{$soft-meadow};
+  --color-charcoal: #{$charcoal};
+  --color-blush: #{$blush};
+  --color-lavender: #{$lavender};
+  --color-mint: #{$mint};
+  --color-powder: #{$powder};
+  --color-butter: #{$butter};
+
+  --font-serif: #{$font-serif};
+  --font-sans: #{$font-sans};
+
+  --radius-panel: #{$r-panel};
+  --radius-pill: #{$r-pill};
+
+  --ease-spring: #{$spring};
+  --ease-snap: #{$snap};
+}

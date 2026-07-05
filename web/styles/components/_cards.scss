@@ -1,0 +1,124 @@
+// ============================================================================
+// CARDS — Asset grid cards with pastel cycling
+// ============================================================================
+@use "../tokens" as *;
+
+.assets-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  margin-bottom: 48px;
+  padding-bottom: 32px;
+  border-bottom: 1px solid $border-color;
+
+  h1 {
+    font-family: $font-serif;
+    font-size: 48px;
+    margin-bottom: 12px;
+    line-height: 1;
+  }
+
+  input { width: 360px; }
+}
+
+.assetgrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 24px;
+
+  .acard {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    cursor: pointer;
+    background: rgba($white, 0.9);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 1px solid $border-color;
+    border-radius: $r-panel;
+    overflow: hidden;
+    transition: all 0.25s $snap;
+
+    &:hover {
+      transform: translateY(-4px);
+      border-color: $deep-ink;
+    }
+  }
+}
+
+.athumb {
+  aspect-ratio: 4/3;
+  background: $soft-meadow;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px;
+  position: relative;
+  overflow: hidden;
+
+  img {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    transition: transform 0.3s $snap;
+  }
+
+  .acard:hover & img { transform: scale(1.05); }
+}
+
+.abadge {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  background: $white;
+  border: 1px solid $border-color;
+  border-radius: $r-pill;
+  padding: 4px 10px;
+  font-size: 10px;
+  font-weight: 600;
+  color: $slate;
+}
+
+.acap {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  border-top: 1px solid $border-color;
+}
+
+.anm { font-weight: 600; font-size: 16px; }
+
+.acap-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  color: $slate;
+}
+
+.aview {
+  color: $deep-ink;
+  opacity: 0;
+  transition: all 0.2s;
+  transform: translateX(-4px);
+
+  .acard:hover & {
+    opacity: 1;
+    transform: translateX(4px);
+  }
+}
+
+// --- Aboard Pastel Cycling ---
+$cycle-colors: (
+  1: $soft-meadow,
+  2: $blush,
+  3: $lavender,
+  4: $mint,
+  5: $powder,
+);
+
+@each $i, $color in $cycle-colors {
+  .assetgrid .acard:nth-child(5n+#{$i}) .athumb {
+    background: $color;
+  }
+}

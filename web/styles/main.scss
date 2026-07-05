@@ -1,0 +1,24 @@
+// ============================================================================
+// MAIN — Tailwind v4 + Ditto SCSS Architecture
+// ============================================================================
+
+// 3. Global Base
+@use "base";
+
+// 4. Components
+@use "components/appbar";
+@use "components/inspector";
+@use "components/preview";
+@use "components/picker";
+@use "components/cards";
+@use "components/modal";
+@use "components/palette";
+@use "components/toast";
+@use "components/browse";
+@use "components/settings";
+
+// 5. Utilities
+@use "utilities";
+
+// 1. Tailwind v4 Base (auto-discovers @theme from _tokens.scss)
+@import "tailwindcss";

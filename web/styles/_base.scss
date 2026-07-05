@@ -1,0 +1,54 @@
+// ============================================================================
+// BASE — Reset, viewport lock, global typography
+// ============================================================================
+@use "tokens" as *;
+
+@import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=Inter:wght@400;500;600&display=swap');
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: $font-sans;
+  font-size: 16px;
+  letter-spacing: -0.01em;
+  color: $deep-ink;
+  background: transparent; // Three.js renders the background
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-feature-settings: "cv11", "ss01";
+}
+
+h1, h2, h3, .serif {
+  font-family: $font-serif;
+  font-weight: 400;
+  color: $deep-ink;
+  letter-spacing: -0.01em;
+  line-height: 1.1;
+}
+
+button, input, select { font: inherit; color: inherit; }
+button { cursor: pointer; border: none; background: none; }
+button:disabled { opacity: 0.4 !important; cursor: not-allowed !important; }
+
+// Scrollbars
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: $border-lit; border-radius: 99px; }
+::-webkit-scrollbar-thumb:hover { background: $slate; }
+
+// Placeholder styling
+input::placeholder {
+  font-size: 12px;
+  opacity: 0.5;
+}
+
+// Three.js canvas
+#three-canvas {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+}

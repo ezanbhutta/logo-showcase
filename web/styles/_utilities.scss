@@ -1,0 +1,83 @@
+// ============================================================================
+// UTILITIES — Hidden, empty states, callouts, links
+// ============================================================================
+@use "tokens" as *;
+
+[hidden] { display: none !important; }
+.foot, #connect-banner { display: none !important; }
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 60vh;
+  gap: 16px;
+  color: $slate;
+}
+.empty-ico { font-size: 48px; opacity: 0.2; }
+
+.callout {
+  background: $canvas;
+  border: 1px solid $border-color;
+  padding: 16px;
+  border-radius: 16px;
+  font-size: 14px;
+  color: $slate;
+  margin-bottom: 24px;
+  line-height: 1.5;
+}
+
+.link {
+  color: $deep-ink;
+  font-weight: 600;
+  text-decoration: underline;
+  padding: 0;
+}
+
+// Ghost button
+.ghost {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 24px;
+  height: 40px;
+  background: transparent;
+  color: $deep-ink;
+  font-size: 14px;
+  font-weight: 600;
+  border: 1px solid $border-color;
+  border-radius: $r-pill;
+  transition: background 0.2s $snap;
+
+  &:hover { background: $canvas; }
+}
+
+// Layout containers
+.container {
+  position: absolute;
+  inset: 0;
+  padding: 120px 48px 48px;
+  overflow-y: auto;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.container-wide {
+  position: absolute;
+  inset: 0;
+  padding: 120px 48px 48px;
+  overflow-y: auto;
+}
+
+// Animations
+@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes blink { 50% { opacity: 0.3; } }
+@keyframes popIn {
+  0% { opacity: 0; transform: scale(0.95) translateY(20px); }
+  100% { opacity: 1; transform: scale(1) translateY(0); }
+}
+@keyframes slideUp {
+  0% { opacity: 0; transform: translateY(20px) scale(0.9); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}

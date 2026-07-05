@@ -1,0 +1,100 @@
+// ============================================================================
+// PICKER — Logo selection grid in the inspector
+// ============================================================================
+@use "../tokens" as *;
+
+.picker {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  max-height: 240px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.pcard {
+  position: relative;
+  aspect-ratio: 1;
+  background: $soft-meadow;
+  border-radius: 16px;
+  overflow: hidden;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  transition: all 0.2s $snap;
+
+  &:hover { transform: translateY(-2px); }
+  &.sel { background: $hi-yellow; }
+}
+
+.pthumb {
+  flex: 1;
+  position: relative;
+  padding: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  img {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+  }
+}
+
+.pnum {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  width: 20px;
+  height: 20px;
+  background: $deep-ink;
+  color: $white;
+  font-size: 10px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  z-index: 3;
+}
+
+.pname {
+  font-size: 10px;
+  padding: 8px;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: $slate;
+  background: rgba($white, 0.5);
+
+  .pcard.sel & {
+    color: $deep-ink;
+    font-weight: 600;
+  }
+}
+
+.picker-foot {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+  color: $slate;
+}
+
+.picker-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.mini {
+  font-size: 12px;
+  font-weight: 500;
+  color: $slate;
+
+  &:hover {
+    color: $deep-ink;
+    text-decoration: underline;
+  }
+}

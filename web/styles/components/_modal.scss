@@ -1,0 +1,93 @@
+// ============================================================================
+// MODAL — Preview modal, overlay, media display
+// ============================================================================
+@use "../tokens" as *;
+
+.modal {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal-bg {
+  position: absolute;
+  inset: 0;
+  background: rgba($canvas, 0.6);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+}
+
+.modal-card {
+  position: relative;
+  width: 90vw;
+  height: 90vh;
+  max-width: 1200px;
+  background: rgba($white, 0.95);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid $border-color;
+  border-radius: $r-panel;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 24px 80px rgba($deep-ink, 0.12);
+  animation: popIn 0.4s $spring;
+}
+
+.modal-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 24px;
+  border-bottom: 1px solid $border-color;
+  background: rgba($canvas, 0.8);
+}
+
+.modal-title {
+  font-family: $font-serif;
+  font-size: 24px;
+  line-height: 1;
+}
+
+.modal-sub {
+  font-size: 14px;
+  color: $slate;
+  margin-top: 4px;
+}
+
+.modal-body {
+  flex: 1;
+  position: relative;
+  background: $soft-meadow;
+
+  img, video {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    padding: 48px;
+  }
+}
+
+.preview-loading {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  align-items: center;
+  justify-content: center;
+  color: $slate;
+  font-size: 14px;
+}
+
+.loader {
+  width: 32px;
+  height: 32px;
+  border: 3px solid $border-color;
+  border-top-color: $hi-yellow;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}

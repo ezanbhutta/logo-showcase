@@ -1,21 +1,3 @@
-# Generated previews, manifests, gallery assets
-/build/
+node_modules/
+dist/
 
-# Generated PDFs
-/out/
-
-# PyInstaller build output
-/dist/
-*.manifest
-
-# Python
-__pycache__/
-*.py[cod]
-*.egg-info/
-.venv/
-venv/
-.pytest_cache/
-
-# OS
-.DS_Store
-Thumbs.db
