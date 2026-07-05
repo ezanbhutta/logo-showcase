@@ -1,3 +1,11 @@
 node_modules/
 dist/
 
+# Python bytecode
+__pycache__/
+*.pyc
+*.pyo
+
+# Generated engine output / build artifacts
+build/
+out/
