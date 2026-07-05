@@ -1,6 +1,6 @@
 @charset "UTF-8";
 @import url("https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=Inter:wght@400;500;600&display=swap");
-@theme {
+:root {
   --color-deep-ink: #130e30;
   --color-hi-yellow: #ffe228;
   --color-slate: #5f5c6e;
@@ -19,6 +19,7 @@
   --ease-spring: cubic-bezier(0.175, 0.885, 0.32, 1.2);
   --ease-snap: cubic-bezier(0.2, 0.8, 0.2, 1);
 }
+
 *, *::before, *::after {
   box-sizing: border-box;
   margin: 0;
@@ -45,6 +46,14 @@ h1, h2, h3, .serif {
   color: #130e30;
   letter-spacing: -0.01em;
   line-height: 1.1;
+}
+
+main, .view {
+  width: 100vw;
+  height: 100vh;
+  position: absolute;
+  top: 0;
+  left: 0;
 }
 
 button, input, select {

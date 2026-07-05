@@ -49,7 +49,7 @@ $pastels: (
 
 // --- Tailwind v4 @theme (makes tokens available as tw utilities) ---
 
-@theme {
+:root {
   --color-deep-ink: #{$deep-ink};
   --color-hi-yellow: #{$hi-yellow};
   --color-slate: #{$slate};

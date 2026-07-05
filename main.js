@@ -1,4 +1,4 @@
-const { app, BrowserWindow } = require('electron');
+const { app, BrowserWindow, protocol } = require('electron');
 const path = require('path');
 
 function createWindow () {
@@ -7,12 +7,16 @@ function createWindow () {
     height: 800,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
-      nodeIntegration: true
+      nodeIntegration: true,
+      webSecurity: false // Allow file:// ES modules and local fetch
     }
   });
 
   // Load the vanilla web app
   mainWindow.loadFile('web/index.html');
+  
+  // Open DevTools for debugging (can be removed later)
+  // mainWindow.webContents.openDevTools();
 }
 
 app.whenReady().then(() => {

@@ -173,7 +173,15 @@ export class FsPortfolio {
 export class DemoPortfolio {
   constructor(base = "demo/portfolio") { this.base = base; this._m = null; }
   async _manifest() {
-    if (!this._m) this._m = await (await fetch(`${this.base}/manifest.json`)).json();
+    if (!this._m) {
+      try {
+        const res = await fetch(`${this.base}/manifest.json`);
+        this._m = await res.json();
+      } catch (e) {
+        console.warn("Demo portfolio not available on file:// protocol:", e);
+        this._m = { profile: "eikon", name: "Local Mode", dirs: {}, types: {}, tags: {} };
+      }
+    }
     return this._m;
   }
   profile() {

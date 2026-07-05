@@ -10,7 +10,7 @@ let _pdfjs = null;
 function loadPdfjs() {
   if (!_pdfjs) {
     _pdfjs = import("../lib/pdf.min.js").then((m) => {
-      m.GlobalWorkerOptions.workerSrc = new URL("../lib/pdf.worker.min.js", import.meta.url).href;
+      m.GlobalWorkerOptions.workerSrc = 'lib/pdf.worker.min.js';
       return m;
     });
   }

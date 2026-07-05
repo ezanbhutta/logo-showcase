@@ -23,6 +23,7 @@
   },
   "homepage": "https://github.com/ezanbhutta/logo-showcase#readme",
   "devDependencies": {
-    "electron": "^43.0.0"
+    "electron": "^43.0.0",
+    "esbuild": "^0.28.1"
   }
 }
