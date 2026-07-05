@@ -118,8 +118,8 @@ button:disabled { opacity: 0.4 !important; cursor: not-allowed !important; }
   display: flex;
   align-items: center;
   gap: 16px;
-  padding: 6px 6px 6px 16px;
-  height: 44px;
+  padding: 8px 8px 8px 16px;
+  height: 52px;
   
   background: var(--appbar-bg);
   backdrop-filter: var(--blur-appbar);
@@ -143,6 +143,7 @@ button:disabled { opacity: 0.4 !important; cursor: not-allowed !important; }
   display: flex;
   gap: 6px;
   align-items: center;
+  white-space: nowrap;
 }
 .brand-text small {
   font-weight: 400;
@@ -170,6 +171,7 @@ button:disabled { opacity: 0.4 !important; cursor: not-allowed !important; }
   font-weight: 500;
   color: var(--muted);
   border-radius: var(--r-pill);
+  white-space: nowrap;
   transition: all 0.2s var(--snap);
 }
 .tab:hover { color: var(--ink); background: var(--surface-hover); }
@@ -215,6 +217,7 @@ button:disabled { opacity: 0.4 !important; cursor: not-allowed !important; }
   font-weight: 500;
   background: var(--surface-hover);
   border: 1px solid var(--border);
+  white-space: nowrap;
 }
 .src-dot { width: 6px; height: 6px; border-radius: 50%; background: #FF3B30; }
 .source.live .src-dot { background: #34C759; }
