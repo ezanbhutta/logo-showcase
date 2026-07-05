@@ -10,9 +10,6 @@ import { THEMES } from "./src/themes.js";
 import { renderSlice, renderRange, renderByType } from "./src/pdf.js";
 import { INDUSTRIES, TYPES as LOGO_TYPES } from "./src/vocab.js";
 import { thumbUrl } from "./src/images.js";
-
-import { initScene } from './src/scene3d.js';
-
 const $ = (s) => document.querySelector(s);
 const $$ = (s) => [...document.querySelectorAll(s)];
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) =>
@@ -497,7 +494,6 @@ function onKey(e) {
 }
 
 async function init() {
-  initScene();
   initTheme(); wire();
   if (fsAccessSupported()) {
     try {
