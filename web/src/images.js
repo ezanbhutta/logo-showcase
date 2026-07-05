@@ -9,8 +9,8 @@ const cache = new Map();
 let _pdfjs = null;
 function loadPdfjs() {
   if (!_pdfjs) {
-    _pdfjs = import(/* @vite-ignore */ "/lib/pdf.min.js").then((m) => {
-      m.GlobalWorkerOptions.workerSrc = "/lib/pdf.worker.min.js";
+    _pdfjs = import("../lib/pdf.min.js").then((m) => {
+      m.GlobalWorkerOptions.workerSrc = new URL("../lib/pdf.worker.min.js", import.meta.url).href;
       return m;
     });
   }

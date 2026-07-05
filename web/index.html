@@ -6,8 +6,45 @@
   <meta name="color-scheme" content="light dark">
   <title>Logo Showcase · HaseebMadeIt</title>
   <link rel="icon" type="image/svg+xml" href="favicon.svg">
-  <script src="/lib/pdf-lib.min.js"></script>
-  <script src="/lib/fontkit.umd.min.js"></script>
+  <!-- Tailwind v4 Browser Build -->
+  <script src="https://unpkg.com/@tailwindcss/browser@4"></script>
+  <style type="text/tailwindcss">
+    @theme {
+      --color-deep-ink: #130e30;
+      --color-hi-yellow: #ffe228;
+      --color-slate: #5f5c6e;
+      --color-canvas: #f9fbf2;
+      --color-soft-meadow: #eff2e5;
+      --color-charcoal: #222222;
+      --color-blush: #fbcfe8;
+      --color-lavender: #e6dafd;
+      --color-mint: #b6edee;
+      --color-powder: #afe4ff;
+      --color-butter: #ffe77a;
+
+      --font-serif: 'DM Serif Display', ui-serif, Georgia, Cambria, serif;
+      --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+
+      --radius-panel: 24px;
+      --radius-pill: 1440px;
+
+      --ease-spring: cubic-bezier(0.175, 0.885, 0.32, 1.2);
+      --ease-snap: cubic-bezier(0.2, 0.8, 0.2, 1);
+    }
+  </style>
+
+  <!-- Three.js Import Map -->
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://unpkg.com/three@0.160.0/build/three.module.js"
+      }
+    }
+  </script>
+
+  <link rel="stylesheet" href="styles.css">
+  <script src="lib/pdf-lib.min.js"></script>
+  <script src="lib/fontkit.umd.min.js"></script>
 </head>
 <body>
   <canvas id="three-canvas" aria-hidden="true"></canvas>

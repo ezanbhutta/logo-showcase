@@ -11,7 +11,6 @@ import { renderSlice, renderRange, renderByType } from "./src/pdf.js";
 import { INDUSTRIES, TYPES as LOGO_TYPES } from "./src/vocab.js";
 import { thumbUrl } from "./src/images.js";
 
-import './styles/main.scss';
 import { initScene } from './src/scene3d.js';
 
 const $ = (s) => document.querySelector(s);
