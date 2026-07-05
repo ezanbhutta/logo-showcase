@@ -15067,7 +15067,7 @@
   }
   async function loadBrandmark(pdf, theme) {
     const id = theme.id;
-    if (!id) return null;
+    if (!id || !BRANDED.has(id)) return null;
     for (const ext of ["svg", "png", "jpg"]) {
       try {
         const res = await fetch(`brand/${id}.${ext}`);
@@ -15378,7 +15378,7 @@
     pages.forEach((pg, i2) => runFooter(pg, T2, F2, startNo + i2, total, ctx.subtitle));
     return pdf.save();
   }
-  var PDFDocument, rgb, degrees, MM, PAGE_W, PAGE_H, P2, FONT_FILES, _buf, yT, caps, displayTrack, indLabel, _markCache;
+  var PDFDocument, rgb, degrees, MM, PAGE_W, PAGE_H, P2, FONT_FILES, _buf, yT, caps, displayTrack, indLabel, _markCache, BRANDED;
   var init_pdf = __esm({
     "web/src/pdf.js"() {
       init_curate();
@@ -15406,6 +15406,7 @@
       displayTrack = (size) => -(size * 0.01);
       indLabel = (e2) => (e2.industries || []).slice(0, 3).map((i2) => i2.replace(/-/g, " ")).join("  \xB7  ");
       _markCache = /* @__PURE__ */ new Map();
+      BRANDED = /* @__PURE__ */ new Set();
     }
   });
 

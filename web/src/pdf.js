@@ -171,9 +171,12 @@ async function embedPreviews(pdf, src, profile, entries) {
 }
 
 const _markCache = new Map();
+// Studios whose logo file is vendored at web/brand/<id>.(svg|png|jpg). Add an id
+// here only once its file exists — avoids 404 requests for studios without one.
+const BRANDED = new Set();
 async function loadBrandmark(pdf, theme) {
   const id = theme.id;
-  if (!id) return null;
+  if (!id || !BRANDED.has(id)) return null;
   for (const ext of ["svg", "png", "jpg"]) {
     try {
       const res = await fetch(`brand/${id}.${ext}`);
