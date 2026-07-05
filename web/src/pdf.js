@@ -68,6 +68,10 @@ function mix(c, alpha) {
   const k = hex(c);
   return rgb(k.red + (1 - k.red) * (1 - alpha), k.green + (1 - k.green) * (1 - alpha), k.blue + (1 - k.blue) * (1 - alpha));
 }
+function mix2(c1, c2, alpha) {
+  const k1 = hex(c1), k2 = hex(c2);
+  return rgb(k1.red * alpha + k2.red * (1 - alpha), k1.green * alpha + k2.green * (1 - alpha), k1.blue * alpha + k2.blue * (1 - alpha));
+}
 function isLight(c) {
   const k = hex(c);
   return 0.2126 * k.red + 0.7152 * k.green + 0.0722 * k.blue > 0.62;
@@ -86,6 +90,12 @@ function rect(page, x, y, w, h, { fill, stroke, line = 0.5 } = {}) {
   page.drawRectangle({ x: x * MM, y: yT(y + h), width: w * MM, height: h * MM,
     ...(fill ? { color: fill } : {}), ...(stroke ? { borderColor: stroke, borderWidth: line } : {}) });
 }
+function roundedRect(page, x, y, w, h, r, { fill, stroke, line = 0.5 } = {}) {
+  // PDFLib doesn't have native rounded rects exposed easily, so we just use rect for now, 
+  // but we remove harsh strokes to simulate Apple-like softness via negative space.
+  rect(page, x, y, w, h, { fill, stroke, line });
+}
+
 function hline(page, x1, x2, y, color, w = 0.4) {
   page.drawLine({ start: { x: x1 * MM, y: yT(y) }, end: { x: x2 * MM, y: yT(y) }, thickness: w, color });
 }
@@ -113,15 +123,15 @@ function fitTitle(s, font, startSize, maxMM, minSize = 22) {
 // labels, tight tracking on big display, a mono "system" face for numerals.
 const caps = (s) => String(s ?? "").toUpperCase();
 // Optical tracking for big display type — tighter as it grows (in points).
-const displayTrack = (size) => -(size * 0.022);
+const displayTrack = (size) => -(size * 0.025);
 // A tracked small-caps micro label in the mono system face. Ultra-premium tracking.
-function microLabel(page, x, y, s, F, size, color, { align = "left", track = size * 0.4 } = {}) {
-  text(page, x, y, caps(s), F("mono", "regular"), size, color, { align, tracking: track });
+function microLabel(page, x, y, s, F, size, color, { align = "left", track = size * 0.45 } = {}) {
+  text(page, x, y, caps(s), F("mono", "semibold"), size, color, { align, tracking: track });
 }
 // A two-up mono page folio: "03 / 12".
 function folio(page, x, y, no, total, F, color, align = "right") {
   text(page, x, y, `${String(no).padStart(2, "0")} / ${String(total).padStart(2, "0")}`,
-    F("mono", "regular"), 6.5, color, { align, tracking: 1.2 });
+    F("mono", "regular"), 6.5, color, { align, tracking: 1.5 });
 }
 
 async function embedPreviews(pdf, src, profile, entries, bgHex) {
@@ -179,7 +189,7 @@ function drawCover(page, theme, F, ctx) {
     if (style === "serif") drawMark(page, ctx.mark, 105, 32, 17, "center");
     else drawMark(page, ctx.mark, 210 - 24, 24, 16, "right");
   }
-  const fgMuted = isLight(pal.cover_bg) ? mix(pal.cover_fg, 0.55) : mix(pal.cover_fg, 0.6);
+  const fgMuted = isLight(pal.cover_bg) ? mix(pal.cover_fg, 0.45) : mix(pal.cover_fg, 0.5);
 
   const kicker = theme.labels.slice_kicker || "Selected work";
   const title = theme.name;
@@ -188,10 +198,10 @@ function drawCover(page, theme, F, ctx) {
 
   const drawClientBlock = (x, y, align = "left") => {
     if (ctx.clientName) {
-      microLabel(page, x, y, "Prepared for", F, 6.5, accent, { align, track: 2.2 });
+      microLabel(page, x, y, "Prepared for", F, 6, accent, { align, track: 2.2 });
       text(page, x, y + 6.5, ctx.clientName, F("serif", "semibold"), 12, fg, { align, tracking: 0.2 });
     }
-    if (ctx.dateStr) microLabel(page, x, y + (ctx.clientName ? 13 : 0), ctx.dateStr, F, 6.5, fgMuted, { align, track: 1.5 });
+    if (ctx.dateStr) microLabel(page, x, y + (ctx.clientName ? 13 : 0), ctx.dateStr, F, 6, fgMuted, { align, track: 1.5 });
   };
   const dispTitle = (x, y, max, start, min, align = "left") => {
     const size = fitTitle(title, F("display", "bold"), start, max, min);
@@ -206,31 +216,31 @@ function drawCover(page, theme, F, ctx) {
     rect(page, mx, 128, 48, 1, { fill: accent });
     text(page, mx, 142, sub, subFont, 14, mix(pal.cover_fg, 0.9), { tracking: 0.2 });
     drawClientBlock(mx, 242);
-    microLabel(page, 210 - mx, 273, `${ctx.n} marks`, F, 7, fgMuted, { align: "right", track: 2 });
+    microLabel(page, 210 - mx, 273, `${ctx.n} marks`, F, 6.5, fgMuted, { align: "right", track: 2 });
 
   } else if (style === "serif") {
     // centered, ultra-fine double hairline — high fashion
-    rect(page, 18, 18, 174, 261, { stroke: mix(pal.cover_fg, 0.25), line: 0.25 });
-    rect(page, 20.5, 20.5, 169, 256, { stroke: mix(pal.cover_fg, 0.1), line: 0.15 });
+    rect(page, 18, 18, 174, 261, { stroke: mix(pal.cover_fg, 0.15), line: 0.15 });
+    rect(page, 20.5, 20.5, 169, 256, { stroke: mix(pal.cover_fg, 0.08), line: 0.1 });
     microLabel(page, 105, 58, kicker, F, 7, accent, { align: "center", track: 4.5 });
     const size = fitTitle(title, F("display", "semibold"), 66, 154, 30);
     text(page, 105, 138, title, F("display", "semibold"), size, fg, { align: "center", tracking: displayTrack(size) });
     hline(page, 95, 115, 148, accent, 0.4);
     text(page, 105, 162, sub, subFont, 13, mix(pal.cover_fg, 0.85), { align: "center", tracking: 0.4 });
     drawClientBlock(105, 230, "center");
-    microLabel(page, 105, 262, `${ctx.n} marks`, F, 6.5, mix(pal.cover_fg, 0.55), { align: "center", track: 2.5 });
+    microLabel(page, 105, 262, `${ctx.n} marks`, F, 6, mix(pal.cover_fg, 0.5), { align: "center", track: 2.5 });
 
   } else if (style === "minimal") {
     const mx = 28;
     microLabel(page, mx, 40, kicker, F, 7, accent, { track: 3.5 });
     dispTitle(mx, 74, 210 - 2 * mx, 52, 26);
     text(page, mx, 86, sub, subFont, 12, mix(pal.cover_fg, 0.6), { tracking: 0.3 });
-    hline(page, mx, 210 - mx, 250, mix(pal.cover_fg, 0.15), 0.25);
+    hline(page, mx, 210 - mx, 250, mix(pal.cover_fg, 0.12), 0.2);
     drawClientBlock(mx, 262);
-    microLabel(page, 210 - mx, 268, `${ctx.n} marks`, F, 6.5, mix(pal.cover_fg, 0.55), { align: "right", track: 2.5 });
+    microLabel(page, 210 - mx, 268, `${ctx.n} marks`, F, 6, mix(pal.cover_fg, 0.5), { align: "right", track: 2.5 });
 
   } else if (style === "gridlines") {
-    const grid = mix(pal.cover_fg, isLight(pal.cover_bg) ? 0.08 : 0.06);
+    const grid = mix(pal.cover_fg, isLight(pal.cover_bg) ? 0.05 : 0.04);
     for (let gx = 24; gx <= 186; gx += logoStep(162, 6)) vline(page, gx, 24, 273, grid, 0.2);
     for (let gy = 42; gy <= 273; gy += 26) hline(page, 24, 186, gy, grid, 0.2);
     const mx = 24;
@@ -239,7 +249,7 @@ function drawCover(page, theme, F, ctx) {
     rect(page, mx, 128, 48, 1, { fill: accent });
     text(page, mx, 140, sub, subFont, 12, mix(pal.cover_fg, 0.85), { tracking: 0.3 });
     drawClientBlock(mx, 238);
-    microLabel(page, 186, 268, `${ctx.n} marks`, F, 6.5, mix(pal.cover_fg, 0.6), { align: "right", track: 2.5 });
+    microLabel(page, 186, 268, `${ctx.n} marks`, F, 6, mix(pal.cover_fg, 0.5), { align: "right", track: 2.5 });
 
   } else {
     // editorial (default) — confident asymmetric tension
@@ -282,39 +292,42 @@ function drawGrid(pdf, theme, F, tiles, subtitle, ctx) {
   const pal = theme.palette;
   // Premium 2x3 grid. Massive margins.
   const cols = 2, rowsPerPage = 3, perPage = 6;
-  const gm = 24, top = 32, bottom = 24;                       
+  const gm = 24, top = 32, bottom = 28;                       
   const gapX = theme.layout.density === "comfortable" ? 16 : 12;
-  const gapY = theme.layout.density === "comfortable" ? 16 : 12;
+  const gapY = theme.layout.density === "comfortable" ? 20 : 16;
   const capH = 14;                                            
   const contentW = 210 - 2 * gm;
   const tileW = (contentW - gapX * (cols - 1)) / cols;
   const usableH = 297 - top - bottom;
   const tileH = (usableH - gapY * (rowsPerPage - 1)) / rowsPerPage;
   const imgH = tileH - capH;                                  
-  const pad = tileW * 0.10;                                   
+  const pad = tileW * 0.12;                                   
   const nameFont = theme.fonts.display === "Fraunces" ? F("body", "semibold") : F("display", "semibold");
   const headerFont = theme.fonts.display === "Fraunces" ? F("body", "bold") : F("display", "bold");
   const header = (pg) => {
-    text(pg, gm, top - 12, theme.name, headerFont, 11, hex(pal.ink), { tracking: displayTrack(11) });
-    microLabel(pg, 210 - gm, top - 12, `${subtitle} · ${ctx.n} marks`, F, 6.5, hex(pal.muted), { align: "right", track: 2 });
-    hline(pg, gm, 210 - gm, top - 6, hex(pal.accent_soft), 0.25);
+    text(pg, gm, top - 12, theme.name, headerFont, 10, hex(pal.ink), { tracking: displayTrack(10) });
+    microLabel(pg, 210 - gm, top - 12, `${subtitle} · ${ctx.n} marks`, F, 6, hex(pal.muted), { align: "right", track: 2 });
+    hline(pg, gm, 210 - gm, top - 6, mix(pal.ink, 0.08), 0.2);
   };
   const pages = [];
   let page = null;
+  // Ultra subtle raised background instead of a hard stroke
+  const raisedColor = mix2(pal.ink, pal.paper, 0.03); 
+  
   tiles.forEach(({ entry, img }, i) => {
     const slot = i % perPage;
     if (slot === 0) { page = pdf.addPage([PAGE_W, PAGE_H]); page._F = F; pages.push(page); header(page); }
     const r = Math.floor(slot / cols), c = slot % cols;
     const x = gm + c * (tileW + gapX);
     const y = top + r * (tileH + gapY);
-    // Ultra subtle frame
-    rect(page, x, y, tileW, imgH, { fill: hex(pal.paper), stroke: hex(pal.accent_soft), line: 0.25 });
+    // Apple-grade materials: Soft tint, no harsh border
+    rect(page, x, y, tileW, imgH, { fill: raisedColor });
     const f = fit(img, tileW, imgH, pad);
     page.drawImage(img, { x: (x + tileW / 2) * MM - (f.w * MM) / 2, y: yT(y + imgH / 2) - (f.h * MM) / 2, width: f.w * MM, height: f.h * MM });
-    text(page, x, y + imgH + 8, String(i + 1).padStart(2, "0"), F("mono", "regular"), 6.5, hex(pal.accent), { tracking: 0.5 });
-    text(page, x + 10, y + imgH + 8, clip(entry.name, nameFont, 10, tileW - 10), nameFont, 10, hex(pal.ink));
+    text(page, x, y + imgH + 8, String(i + 1).padStart(2, "0"), F("mono", "semibold"), 6, hex(pal.accent), { tracking: 0.5 });
+    text(page, x + 10, y + imgH + 8, clip(entry.name, nameFont, 9.5, tileW - 10), nameFont, 9.5, hex(pal.ink));
     if (entry.types && entry.types.length)
-      microLabel(page, x + 10, y + imgH + 11.5, typeLabel(entry.types), F, 5.5, hex(pal.muted), { track: 1.5 });
+      microLabel(page, x + 10, y + imgH + 11.5, typeLabel(entry.types), F, 5, hex(pal.muted), { track: 1.5 });
   });
   return pages;
 }
@@ -322,7 +335,7 @@ function drawGrid(pdf, theme, F, tiles, subtitle, ctx) {
 function drawLookbook(pdf, theme, F, tiles, subtitle, ctx) {
   const pal = theme.palette;
   // 2-up Lookbook. Extremely spacious.
-  const mx = 32, top = 36, bottom = 28, perPage = 2, slotGap = 24;
+  const mx = 32, top = 36, bottom = 28, perPage = 2, slotGap = 32;
   const usable = 297 - top - bottom;
   const slotH = (usable - slotGap * (perPage - 1)) / perPage;
   const frameW = 210 - 2 * mx, frameH = slotH - 24;
@@ -330,21 +343,23 @@ function drawLookbook(pdf, theme, F, tiles, subtitle, ctx) {
   const headerFont = theme.fonts.display === "Fraunces" ? F("body", "bold") : F("display", "bold");
   const header = (pg) => {
     text(pg, mx, 20, theme.name, headerFont, 10, hex(pal.ink), { tracking: displayTrack(10) });
-    microLabel(pg, 210 - mx, 20, `${subtitle} · ${ctx.n} marks`, F, 6.5, hex(pal.muted), { align: "right", track: 2 });
-    hline(pg, mx, 210 - mx, 24, hex(pal.accent_soft), 0.25);
+    microLabel(pg, 210 - mx, 20, `${subtitle} · ${ctx.n} marks`, F, 6, hex(pal.muted), { align: "right", track: 2 });
+    hline(pg, mx, 210 - mx, 24, mix(pal.ink, 0.08), 0.2);
   };
   const pages = []; let page = null, slot = 0, idx = 0;
+  const raisedColor = mix2(pal.ink, pal.paper, 0.03); 
+  
   for (const { entry, img } of tiles) {
     if (slot === 0) { page = pdf.addPage([PAGE_W, PAGE_H]); page._F = F; pages.push(page); header(page); }
     const sy = top + slot * (slotH + slotGap);
-    rect(page, mx, sy, frameW, frameH, { fill: hex(pal.paper), stroke: hex(pal.accent_soft), line: 0.25 });
-    const f = fit(img, frameW, frameH, 24);
+    rect(page, mx, sy, frameW, frameH, { fill: raisedColor });
+    const f = fit(img, frameW, frameH, 32);
     page.drawImage(img, { x: (mx + frameW / 2) * MM - (f.w * MM) / 2, y: yT(sy + frameH / 2) - (f.h * MM) / 2, width: f.w * MM, height: f.h * MM });
     const cy = sy + frameH + 11;
-    text(page, mx, cy, String(++idx).padStart(2, "0"), F("mono", "regular"), 7, hex(pal.accent), { tracking: 0.5 });
-    text(page, mx + 12, cy, clip(entry.name, nameFont, 14, frameW - 60), nameFont, 14, hex(pal.ink), { tracking: displayTrack(14) });
-    microLabel(page, 210 - mx, cy, typeLabel(entry.types), F, 6.5, hex(pal.muted), { align: "right", track: 2 });
-    if (indLabel(entry)) text(page, mx + 12, cy + 6, indLabel(entry), F("serif", "regular"), 8.5, mix(pal.muted, 0.85), { tracking: 0.3 });
+    text(page, mx, cy, String(++idx).padStart(2, "0"), F("mono", "semibold"), 6.5, hex(pal.accent), { tracking: 0.5 });
+    text(page, mx + 12, cy, clip(entry.name, nameFont, 13, frameW - 60), nameFont, 13, hex(pal.ink), { tracking: displayTrack(13) });
+    microLabel(page, 210 - mx, cy, typeLabel(entry.types), F, 6, hex(pal.muted), { align: "right", track: 2 });
+    if (indLabel(entry)) text(page, mx + 12, cy + 6, indLabel(entry), F("serif", "regular"), 8.5, mix(pal.muted, 0.8), { tracking: 0.3 });
     slot = (slot + 1) % perPage;
   }
   return pages;
@@ -361,29 +376,31 @@ function nameFonts(theme, F) {
 function runHead(page, theme, F, subtitle, n, size = 10, gm = 24) {
   const pal = theme.palette, { head } = nameFonts(theme, F);
   text(page, gm, 20, theme.name, head, size, hex(pal.ink), { tracking: displayTrack(size) });
-  microLabel(page, 210 - gm, 20, `${subtitle} · ${n} marks`, F, 6.5, hex(pal.muted), { align: "right", track: 2 });
-  hline(page, gm, 210 - gm, 24, hex(pal.accent_soft), 0.25);
+  microLabel(page, 210 - gm, 20, `${subtitle} · ${n} marks`, F, 6, hex(pal.muted), { align: "right", track: 2 });
+  hline(page, gm, 210 - gm, 24, mix(pal.ink, 0.08), 0.2);
 }
 const indLabel = (e) => (e.industries || []).slice(0, 3).map((i) => i.replace(/-/g, " ")).join("  ·  ");
 
 // HERO — one giant mark per page, gallery style.
 function drawHero(pdf, theme, F, tiles, subtitle, ctx) {
   const pal = theme.palette, { name } = nameFonts(theme, F), pages = [];
+  const raisedColor = mix2(pal.ink, pal.paper, 0.03); 
+  
   tiles.forEach(({ entry, img }, i) => {
     const page = pdf.addPage([PAGE_W, PAGE_H]); page._F = F; pages.push(page);
     const gm = 32;
-    text(page, gm, 24, String(i + 1).padStart(2, "0"), F("mono", "regular"), 8, hex(pal.accent), { tracking: 0.5 });
-    microLabel(page, 210 - gm, 24, subtitle, F, 6.5, hex(pal.muted), { align: "right", track: 2 });
-    hline(page, gm, 210 - gm, 30, hex(pal.accent_soft), 0.25);
+    text(page, gm, 24, String(i + 1).padStart(2, "0"), F("mono", "semibold"), 7, hex(pal.accent), { tracking: 0.5 });
+    microLabel(page, 210 - gm, 24, subtitle, F, 6, hex(pal.muted), { align: "right", track: 2 });
+    hline(page, gm, 210 - gm, 30, mix(pal.ink, 0.08), 0.2);
     const fy = 48, fh = 160, fw = 210 - 2 * gm;
-    rect(page, gm, fy, fw, fh, { fill: hex(pal.paper), stroke: hex(pal.accent_soft), line: 0.25 });
-    const f = fit(img, fw, fh, 32);
+    rect(page, gm, fy, fw, fh, { fill: raisedColor });
+    const f = fit(img, fw, fh, 36);
     page.drawImage(img, { x: 105 * MM - (f.w * MM) / 2, y: yT(fy + fh / 2) - (f.h * MM) / 2, width: f.w * MM, height: f.h * MM });
     rect(page, gm, fy + fh + 16, 32, 0.8, { fill: hex(pal.accent) });
     const size = fitTitle(entry.name, name, 32, 210 - 2 * gm, 18);
     text(page, gm, fy + fh + 32, entry.name, name, size, hex(pal.ink), { tracking: displayTrack(size) });
     const meta = [typeLabel(entry.types), indLabel(entry)].filter(Boolean).join("    —    ");
-    if (meta) microLabel(page, gm, fy + fh + 40, meta, F, 7, hex(pal.muted), { track: 2 });
+    if (meta) microLabel(page, gm, fy + fh + 40, meta, F, 6.5, hex(pal.muted), { track: 2 });
   });
   return pages;
 }
@@ -391,16 +408,18 @@ function drawHero(pdf, theme, F, tiles, subtitle, ctx) {
 // EDITORIAL — one big mark + two supporting marks per page (magazine spread).
 function drawEditorial(pdf, theme, F, tiles, subtitle, ctx) {
   const pal = theme.palette, { name } = nameFonts(theme, F);
-  const gm = 24, fullW = 210 - 2 * gm, top = 36, bigH = 120, smallTop = 186, smallH = 80, gap = 12, halfW = (fullW - gap) / 2;
+  const gm = 24, fullW = 210 - 2 * gm, top = 36, bigH = 124, smallTop = 186, smallH = 80, gap = 16, halfW = (fullW - gap) / 2;
+  const raisedColor = mix2(pal.ink, pal.paper, 0.03); 
+  
   const tile = (pg, x, y, w, h, entry, img, big) => {
-    rect(pg, x, y, w, h, { fill: hex(pal.paper), stroke: hex(pal.accent_soft), line: 0.25 });
-    const f = fit(img, w, h, big ? 28 : 16);
+    rect(pg, x, y, w, h, { fill: raisedColor });
+    const f = fit(img, w, h, big ? 32 : 16);
     pg.drawImage(img, { x: (x + w / 2) * MM - (f.w * MM) / 2, y: yT(y + h / 2) - (f.h * MM) / 2, width: f.w * MM, height: f.h * MM });
-    const ny = y + h + (big ? 10 : 7);
-    const ns = big ? 14 : 10;
+    const ny = y + h + (big ? 10 : 8);
+    const ns = big ? 13 : 9.5;
     text(pg, x, ny, clip(entry.name, name, ns, w), name, ns, hex(pal.ink), { tracking: displayTrack(ns) });
     if (entry.types && entry.types.length)
-      microLabel(pg, x, ny + (big ? 5.5 : 4.5), typeLabel(entry.types), F, big ? 6.5 : 5.5, hex(pal.muted), { track: big ? 2 : 1.5 });
+      microLabel(pg, x, ny + (big ? 5.5 : 4.5), typeLabel(entry.types), F, big ? 6 : 5, hex(pal.muted), { track: big ? 2 : 1.5 });
   };
   const pages = [];
   for (let i = 0; i < tiles.length; i += 3) {
@@ -417,19 +436,21 @@ function drawEditorial(pdf, theme, F, tiles, subtitle, ctx) {
 // CONTACT — dense numbered index sheet (4 columns).
 function drawContact(pdf, theme, F, tiles, subtitle, ctx) {
   const pal = theme.palette, { name } = nameFonts(theme, F);
-  const cols = 4, gm = 24, gap = 8, top = 36, contentW = 210 - 2 * gm;
+  const cols = 4, gm = 24, gap = 12, top = 36, contentW = 210 - 2 * gm;
   const tileW = (contentW - gap * (cols - 1)) / cols, imgH = tileW, capH = 12, tileH = imgH + capH, rowGap = 12;
   const rowsPerPage = Math.max(1, Math.floor((270 - top) / (tileH + rowGap))), perPage = cols * rowsPerPage;
   const pages = []; let page = null;
+  const raisedColor = mix2(pal.ink, pal.paper, 0.03); 
+  
   tiles.forEach(({ entry, img }, i) => {
     const slot = i % perPage;
     if (slot === 0) { page = pdf.addPage([PAGE_W, PAGE_H]); page._F = F; pages.push(page); runHead(page, theme, F, subtitle, ctx.n, 10, gm); }
     const r = Math.floor(slot / cols), c = slot % cols;
     const x = gm + c * (tileW + gap), y = top + r * (tileH + rowGap);
-    rect(page, x, y, tileW, imgH, { fill: hex(pal.paper), stroke: hex(pal.accent_soft), line: 0.25 });
+    rect(page, x, y, tileW, imgH, { fill: raisedColor });
     const f = fit(img, tileW, imgH, tileW * 0.15);
     page.drawImage(img, { x: (x + tileW / 2) * MM - (f.w * MM) / 2, y: yT(y + imgH / 2) - (f.h * MM) / 2, width: f.w * MM, height: f.h * MM });
-    text(page, x, y + imgH + 5, String(i + 1).padStart(2, "0"), F("mono", "regular"), 5.5, hex(pal.accent), { tracking: 0.5 });
+    text(page, x, y + imgH + 5, String(i + 1).padStart(2, "0"), F("mono", "semibold"), 5, hex(pal.accent), { tracking: 0.5 });
     text(page, x + 8, y + imgH + 5, clip(entry.name, name, 6.5, tileW - 8), name, 6.5, hex(pal.ink));
     if (entry.types && entry.types.length)
       microLabel(page, x, y + imgH + 8.5, typeLabel(entry.types), F, 4.5, hex(pal.muted), { track: 1 });
@@ -440,23 +461,25 @@ function drawContact(pdf, theme, F, tiles, subtitle, ctx) {
 // SPLIT — full-width rows: mark on the left, big meta on the right.
 function drawSplit(pdf, theme, F, tiles, subtitle, ctx) {
   const pal = theme.palette, { name } = nameFonts(theme, F);
-  const gm = 24, perPage = 4, top = 36, rowH = 48, rowGap = 12, markW = 68;
+  const gm = 24, perPage = 4, top = 36, rowH = 48, rowGap = 16, markW = 68;
   const pages = []; let page = null;
+  const raisedColor = mix2(pal.ink, pal.paper, 0.03); 
+  
   tiles.forEach(({ entry, img }, i) => {
     const slot = i % perPage;
     if (slot === 0) { page = pdf.addPage([PAGE_W, PAGE_H]); page._F = F; pages.push(page); runHead(page, theme, F, subtitle, ctx.n, 10, gm); }
     const y = top + slot * (rowH + rowGap);
-    rect(page, gm, y, markW, rowH, { fill: hex(pal.paper), stroke: hex(pal.accent_soft), line: 0.25 });
+    rect(page, gm, y, markW, rowH, { fill: raisedColor });
     const f = fit(img, markW, rowH, 12);
     page.drawImage(img, { x: (gm + markW / 2) * MM - (f.w * MM) / 2, y: yT(y + rowH / 2) - (f.h * MM) / 2, width: f.w * MM, height: f.h * MM });
     const tx = gm + markW + 16;
-    text(page, tx, y + 10, String(i + 1).padStart(2, "0"), F("mono", "regular"), 7, hex(pal.accent), { tracking: 0.5 });
-    text(page, tx, y + 24, clip(entry.name, name, 16, 210 - tx - gm), name, 16, hex(pal.ink), { tracking: displayTrack(16) });
+    text(page, tx, y + 10, String(i + 1).padStart(2, "0"), F("mono", "semibold"), 6.5, hex(pal.accent), { tracking: 0.5 });
+    text(page, tx, y + 24, clip(entry.name, name, 15, 210 - tx - gm), name, 15, hex(pal.ink), { tracking: displayTrack(15) });
     if (entry.types && entry.types.length)
-      microLabel(page, tx, y + 32, typeLabel(entry.types), F, 6.5, hex(pal.muted), { track: 2 });
+      microLabel(page, tx, y + 32, typeLabel(entry.types), F, 6, hex(pal.muted), { track: 2 });
     const il = indLabel(entry);
     if (il) text(page, tx, y + 40, il, F("serif", "regular"), 8.5, mix(pal.muted, 0.85), { tracking: 0.3 });
-    hline(page, gm, 210 - gm, y + rowH + rowGap / 2, hex(pal.accent_soft), 0.2);
+    hline(page, gm, 210 - gm, y + rowH + rowGap / 2, mix(pal.ink, 0.08), 0.15);
   });
   return pages;
 }
@@ -520,29 +543,30 @@ export async function renderRange(src, profile, theme, entries, query, opts = {}
   if (includeCover) drawCover(pdf.addPage([PAGE_W, PAGE_H]), T, F, ctx);
 
   const cols = opts.columns || Math.max(4, Math.min(T.layout.tile_cols + 2, 6));
-  const gap = T.layout.density === "compact" ? 6 : T.layout.density === "comfortable" ? 10 : 8;
+  const gap = T.layout.density === "compact" ? 8 : T.layout.density === "comfortable" ? 16 : 12;
   const gm = 24;
   const contentW = 210 - 2 * gm;
   const tileW = (contentW - gap * (cols - 1)) / cols;
   const imgH = tileW, capH = 10, tileH = imgH + capH;
   const nameFont = T.fonts.display === "Fraunces" ? F("body", "semibold") : F("display", "semibold");
   const headFont = T.fonts.display === "Fraunces" ? F("body", "bold") : F("display", "bold");
-
+  const raisedColor = mix2(pal.ink, pal.paper, 0.03); 
+  
   const pages = [];
   let page = pdf.addPage([PAGE_W, PAGE_H]); page._F = F; pages.push(page);
-  text(page, gm, 24, T.name, headFont, 18, hex(pal.ink));
+  text(page, gm, 24, T.name, headFont, 16, hex(pal.ink));
   rect(page, gm, 29, 32, 0.8, { fill: hex(pal.accent) });
   text(page, gm, 36, `${title} · ${subtitle} · ${n} marks`, F("body", "regular"), 8.5, hex(pal.muted));
   const runHeader = (pg) => {
     text(pg, gm, 20, T.name, headFont, 8, hex(pal.ink));
     microLabel(pg, 210 - gm, 20, title, F, 6, hex(pal.accent), { align: "right", track: 2 });
-    hline(pg, gm, 210 - gm, 24, hex(pal.accent_soft), 0.25);
+    hline(pg, gm, 210 - gm, 24, mix(pal.ink, 0.08), 0.2);
   };
   let top = 46, col = 0, rowY = top;
   for (const { entry, img } of tiles) {
     if (rowY + tileH > 270) { page = pdf.addPage([PAGE_W, PAGE_H]); page._F = F; pages.push(page); runHeader(page); top = 32; rowY = top; col = 0; }
     const x = gm + col * (tileW + gap);
-    rect(page, x, rowY, tileW, imgH, { fill: hex(pal.paper), stroke: hex(pal.accent_soft), line: 0.25 });
+    rect(page, x, rowY, tileW, imgH, { fill: raisedColor });
     const f = fit(img, tileW, imgH, tileW * 0.15);
     page.drawImage(img, { x: (x + tileW / 2) * MM - (f.w * MM) / 2, y: yT(rowY + imgH / 2) - (f.h * MM) / 2, width: f.w * MM, height: f.h * MM });
     text(page, x, rowY + imgH + 4, clip(entry.name, nameFont, 6.5, tileW), nameFont, 6.5, hex(pal.ink));
@@ -572,26 +596,28 @@ export async function renderByType(src, profile, theme, groups, opts = {}) {
   ctx.mark = await loadBrandmark(pdf, T);
   if (opts.includeCover !== false) drawCover(pdf.addPage([PAGE_W, PAGE_H]), T, F, ctx);
 
-  const cols = 3, gm = 24, gap = 12, secGap = 16;
+  const cols = 3, gm = 24, gap = 16, secGap = 20;
   const contentW = 210 - 2 * gm;
   const tileW = (contentW - gap * (cols - 1)) / cols;
-  const imgH = tileW * 0.7, capH = 12, tileH = imgH + capH, rowGap = 12;
+  const imgH = tileW * 0.7, capH = 12, tileH = imgH + capH, rowGap = 16;
   const nameFont = T.fonts.display === "Fraunces" ? F("body", "semibold") : F("display", "semibold");
   const headFont = T.fonts.display === "Fraunces" ? F("body", "bold") : F("display", "bold");
+  const raisedColor = mix2(pal.ink, pal.paper, 0.03); 
+  
   const pages = [];
   let page = null, y = 0;
   const newPage = () => {
     page = pdf.addPage([PAGE_W, PAGE_H]); page._F = F; pages.push(page);
     text(page, gm, 20, T.name, headFont, 9, hex(pal.ink));
-    microLabel(page, 210 - gm, 20, ctx.subtitle, F, 6.5, hex(pal.accent), { align: "right", track: 2 });
-    hline(page, gm, 210 - gm, 24, hex(pal.accent_soft), 0.25);
+    microLabel(page, 210 - gm, 20, ctx.subtitle, F, 6, hex(pal.accent), { align: "right", track: 2 });
+    hline(page, gm, 210 - gm, 24, mix(pal.ink, 0.08), 0.2);
     y = 36;
   };
   newPage();
   for (const g of groups) {
     if (y + 24 > 270) newPage();
     const shown = g.entries.length, total = g.total ?? shown;
-    microLabel(page, gm, y + 4, g.type.replace(/-/g, " "), F, 9, hex(pal.ink), { track: 2.5 });
+    microLabel(page, gm, y + 4, g.type.replace(/-/g, " "), F, 8.5, hex(pal.ink), { track: 2.5 });
     text(page, 210 - gm, y + 4, total === shown ? `${total} mark${total !== 1 ? "s" : ""}` : `${shown} of ${total}`,
          F("body", "regular"), 7.5, hex(pal.muted), { align: "right" });
     hline(page, gm, 210 - gm, y + 8, hex(pal.accent), 0.4);
@@ -600,7 +626,7 @@ export async function renderByType(src, profile, theme, groups, opts = {}) {
     for (const e of g.entries) {
       if (y + tileH > 270) { newPage(); col = 0; }
       const x = gm + col * (tileW + gap);
-      rect(page, x, y, tileW, imgH, { fill: hex(pal.paper), stroke: hex(pal.accent_soft), line: 0.25 });
+      rect(page, x, y, tileW, imgH, { fill: raisedColor });
       const img = imgOf.get(e.file);
       if (img) { const f = fit(img, tileW, imgH, tileW * 0.13); page.drawImage(img, { x: (x + tileW / 2) * MM - (f.w * MM) / 2, y: yT(y + imgH / 2) - (f.h * MM) / 2, width: f.w * MM, height: f.h * MM }); }
       text(page, x, y + imgH + 6, clip(e.name, nameFont, 8.5, tileW), nameFont, 8.5, hex(pal.ink));
