@@ -3,8 +3,8 @@
 Examples
 --------
     # matched slice for a construction client (Storm profile)
-    python -m engine.showcase --profile storm --industry construction \\
-        --mode slice --count 12 --out out/storm-construction.pdf
+    python -m engine.showcase --profile eikon --industry construction \\
+        --mode slice --count 12 --out out/eikon-construction.pdf
 
     # by type instead of industry
     python -m engine.showcase --profile eikon --type abstract --mode slice
@@ -14,10 +14,10 @@ Examples
         --type wordmark --match all
 
     # range sheet (whole profile, or filtered the same way)
-    python -m engine.showcase --profile storm --mode range --out out/storm-range.pdf
+    python -m engine.showcase --profile eikon --mode range --out out/eikon-range.pdf
 
     # explicit selection (e.g. exported from the gallery)
-    python -m engine.showcase --profile storm --files apex-builders.png greenleaf.png
+    python -m engine.showcase --profile eikon --files apex-builders.png greenleaf.png
 """
 
 from __future__ import annotations
