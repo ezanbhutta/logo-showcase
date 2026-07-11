@@ -294,35 +294,6 @@
             "range_title": "Full range"
           }
         },
-        "storm": {
-          "id": "storm",
-          "name": "Storm Design",
-          "sort_primary": "industry",
-          "palette": {
-            "ink": "#1B0E16",
-            "paper": "#FFFFFF",
-            "accent": "#E51E79",
-            "accent_soft": "#FCE0EE",
-            "muted": "#8A6C7A",
-            "cover_bg": "#E51E79",
-            "cover_fg": "#FFFFFF"
-          },
-          "fonts": {
-            "display": "Archivo",
-            "body": "Archivo",
-            "serif": "Spectral"
-          },
-          "layout": {
-            "cover_style": "editorial",
-            "tile_cols": 3,
-            "tile_radius_mm": 3,
-            "density": "comfortable"
-          },
-          "labels": {
-            "slice_kicker": "Selected work",
-            "range_title": "Full range"
-          }
-        },
         "wedesign": {
           "id": "wedesign",
           "name": "WeDesign",
